@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analytics — Agentic AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+  <script src="app.js"></script>
+</head>
+<body>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-logo"><i class="fa-solid fa-cube"></i><span>AgenticAdmin</span></div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-link"><i class="fa-solid fa-house"></i><span>Dashboard</span></a>
+      <a href="vehicles.html" class="nav-link"><i class="fa-solid fa-car"></i><span>Fleet Status</span></a>
+      <a href="garages.html" class="nav-link"><i class="fa-solid fa-warehouse"></i><span>Garages</span></a>
+      <a href="analytics.html" class="nav-link active"><i class="fa-solid fa-chart-pie"></i><span>AI Analytics</span></a>
+    </nav>
+    <div class="sidebar-footer">v3.0.0 — Moduled Edition</div>
+  </aside>
+
+  <header class="topbar">
+    <div class="topbar-clock" id="liveClock">00:00:00</div>
+    <div class="topbar-status"><span class="dot"></span> All Systems Operational</div>
+    <div class="topbar-avatar" title="Admin Profile">A</div>
+  </header>
+
+  <main class="main">
+
+    <div class="two-col">
+      <!-- INSIGHTS CHART -->
+      <section class="white-card animate-in">
+        <div class="section-header">
+          <h2><i class="fa-solid fa-lightbulb" style="color:var(--warning)"></i> AI Predictive Insights</h2>
+        </div>
+        
+        <div class="chart-wrap" style="height:260px; margin-bottom: 24px;">
+          <canvas id="failureChart"></canvas>
+        </div>
+        
+        <div class="insight-bars" id="insightBars"></div>
+        
+      </section>
+
+      <div style="display:flex; flex-direction:column; gap:24px;">
+        <!-- ANOMALIES -->
+        <section class="white-card animate-in">
+          <div class="section-header">
+            <h2><i class="fa-solid fa-satellite-dish" style="color:var(--accent-purple)"></i> Live System Anomalies</h2>
+          </div>
+          <div class="anomaly-list" id="anomalyList"></div>
+        </section>
+        
+        <!-- SUMMARY BLOCKS -->
+        <div class="insight-note alert animate-in">
+          <strong><i class="fa-solid fa-circle-exclamation"></i> Quality Alert</strong>
+          Supply chain analysis indicates a potential batch defect in standard 12V batteries originating from Supplier B. 45% of recent failures stem from this component.
+        </div>
+        <div class="insight-note positive animate-in">
+          <strong><i class="fa-solid fa-chart-line"></i> Proactive Savings</strong>
+          Predictive models have scheduled 47 early interventions for next week. Estimated prevention of catastrophic failures saves approximately ₹4,20,000.
+        </div>
+      </div>
+    
+  </main>
+</div>
+
+<script>
+  function renderAnomalies() {
+    document.getElementById('anomalyList').innerHTML = anomalies.map(a => `
+      <div class="anomaly-item">
+        <div class="anomaly-icon ${a.severity}">
+          <i class="fa-solid ${a.severity==='critical'?'fa-bolt':a.severity==='warning'?'fa-exclamation':'fa-info'}"></i>
+        </div>
+        <div class="anomaly-content">
+          <div class="anomaly-header">
+            ${a.vehicle ? `<span class="anomaly-vehicle" style="color:var(--primary)">${a.vehicle}</span>` : `<span class="anomaly-vehicle" style="color:var(--text-muted)">System Engine</span>`}
+            <span class="anomaly-time">${a.time}</span>
+          </div>
+          <div class="anomaly-text">${a.issue}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function initChartAndBars() {
+    // Generate Bars
+    document.getElementById('insightBars').innerHTML = failureData.map(d => `
+      <div class="insight-bar-row">
+        <span class="insight-bar-label">${d.label}</span>
+        <div class="insight-bar-track">
+          <div class="insight-bar-fill" style="width:0%;background:${d.color};" data-pct="${d.pct}"></div>
+        </div>
+        <span class="insight-bar-pct">${d.pct}%</span>
+      </div>
+    `).join('');
+
+    setTimeout(() => {
+       document.querySelectorAll('.insight-bar-fill').forEach(el => el.style.width = el.dataset.pct + '%');
+    }, 150);
+
+    // Render Doughnut Chart
+    const ctx = document.getElementById('failureChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: failureData.map(d => d.label),
+        datasets: [{
+          data: failureData.map(d => d.pct),
+          backgroundColor: failureData.map(d => d.color),
+          borderWidth: 2,
+          borderColor: '#ffffff',
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        cutout: '65%',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { 
+            position: 'right',
+            labels: { font: { family: 'Inter', size: 12 }, padding: 20 }
+          },
+          tooltip: {
+            backgroundColor: '#111827',
+            titleFont: { family: 'Inter', size: 13 },
+            bodyFont: { family: 'Inter', size: 13 },
+            padding: 12,
+            cornerRadius: 8
+          }
+        }
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    renderAnomalies();
+    initChartAndBars();
+  });
+</script>
+</body>
+</html>
