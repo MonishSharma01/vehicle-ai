@@ -1,4 +1,4 @@
-import { formatCurrency } from '@/lib/utils';
+
 import { ReactNode } from 'react';
 
 interface StatsCardProps {

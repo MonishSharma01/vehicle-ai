@@ -37,6 +37,20 @@ class DecisionAgent:
         print(f"[ANALYZER] Request {request.id} created")
         print(f"           Issue: {ml_result.prediction} | Confidence: {ml_result.confidence * 100:.1f}% | Urgency: {urgency}")
 
+        # ── Persist to Supabase (non-blocking) ──────────────────────────
+        try:
+            from db.supabase_client import sync_service_request, log_agent_action
+            sync_service_request(request)
+            log_agent_action("DecisionAgent", "SERVICE_REQUEST_CREATED", request.id, {
+                "vehicle_id": vehicle.id,
+                "prediction": ml_result.prediction,
+                "confidence": round(ml_result.confidence * 100, 1),
+                "urgency": urgency,
+            })
+        except Exception:
+            pass
+        # ────────────────────────────────────────────────────────────────
+
         garages = risk_agent.rank_garages(vehicle, ml_result.prediction)
 
         if not garages:

@@ -4,6 +4,8 @@ import { Dashboard } from './pages/Dashboard';
 import { FleetStatus } from './pages/FleetStatus';
 import { Garages } from './pages/Garages';
 import { Analytics } from './pages/Analytics';
+import { AnalyticsDashboard } from './pages/AnalyticsDashboard';
+import { GarageRouting } from './pages/GarageRouting';
 import { AppProvider } from './store/data';
 
 function App() {
@@ -16,6 +18,8 @@ function App() {
             <Route path="vehicles" element={<FleetStatus />} />
             <Route path="garages" element={<Garages />} />
             <Route path="analytics" element={<Analytics />} />
+            <Route path="analytics-dashboard" element={<AnalyticsDashboard />} />
+            <Route path="garage-routing" element={<GarageRouting />} />
           </Route>
         </Routes>
       </BrowserRouter>

@@ -88,11 +88,36 @@ class FeedbackAgent:
             print(f"[BOOKING] ✅ Booking {booking.id} is now IN_PROGRESS at {garage.name}")
             print(f"          Service: {booking.service} | Cost: {booking.estimated_cost} | Urgency: {booking.urgency}")
             ACTIVE_PIPELINES.discard(vehicle.id)
+            # ── Supabase sync ──────────────────────────────────────────────
+            try:
+                from db.supabase_client import sync_booking, sync_service_request, log_agent_action
+                sync_booking(booking)
+                sync_service_request(request)
+                log_agent_action("FeedbackAgent", "USER_ACCEPTED", booking.id, {
+                    "vehicle_id": vehicle.id,
+                    "garage_id": garage.id,
+                    "service": booking.service,
+                })
+            except Exception:
+                pass
+            # ──────────────────────────────────────────────────────────────
         else:
             print(f"[USER] ❌ {vehicle.owner_name} DECLINED the offer from {garage.name}")
             booking.status = "CANCELLED"
             request.status = "USER_DECLINED"
             await priority_agent.notify_garage_of_rejection(vehicle, garage, request)
             ACTIVE_PIPELINES.discard(vehicle.id)
+            # ── Supabase sync ──────────────────────────────────────────────
+            try:
+                from db.supabase_client import sync_booking, sync_service_request, log_agent_action
+                sync_booking(booking)
+                sync_service_request(request)
+                log_agent_action("FeedbackAgent", "USER_DECLINED", booking.id, {
+                    "vehicle_id": vehicle.id,
+                    "garage_id": garage.id,
+                })
+            except Exception:
+                pass
+            # ──────────────────────────────────────────────────────────────
             import models.models as _m; _m.PENDING_DEMO_RESTART = True
             print("[DEMO] USER_DECLINED — demo restart flagged.")

@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
 } from 'react-native';
+import { getUserProfile } from '../../lib/auth';
 
 // ── API config ───────────────────────────────────────────────────────────────
 // Android emulator: change to http://10.0.2.2:8000
@@ -104,6 +105,33 @@ export default function AppFlowScreen() {
       ]).start();
     });
   }, [fadeAnim, slideAnim]);
+
+  // Auto-connect from stored auth profile (set by login.tsx / signup.tsx)
+  useEffect(() => {
+    getUserProfile().then(profile => {
+      if (!profile) return; // _layout.tsx handles redirect to /login
+      const vid = (profile.vehicle_id ?? 'V001').toUpperCase();
+      setOwnerName(profile.name);
+      setVehicleId(vid);
+      setAppState('loading');
+      fetch(`${API_URL}/user/${vid}/status`)
+        .then(r => r.ok ? (r.json() as Promise<UserStatus>) : Promise.reject(new Error('not found')))
+        .then((data: UserStatus) => {
+          setVehicleId(data.vehicle.id);
+          setStatusData(data);
+          setLoggedIn(true);
+          userChoseDashboard.current = false;
+          setAppState(deriveUiState(data));
+        })
+        .catch(() => {
+          // vehicle not found or network error — show legacy login form
+          setOwnerName(profile.name);
+          setVehicleId(vid);
+          setAppState('login');
+        });
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Backend polling — runs every 3s once logged in
   useEffect(() => {

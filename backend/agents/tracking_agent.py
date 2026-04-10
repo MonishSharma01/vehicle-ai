@@ -68,6 +68,14 @@ class TrackingAgent:
                 confidence = result["confidence"]
                 print(f"[MONITOR] {vehicle.id} ({vehicle.model}): {prediction} @ {confidence * 100:.1f}%")
 
+                # ── Log every telemetry reading to Supabase ────────────────
+                try:
+                    from db.supabase_client import log_telemetry
+                    log_telemetry(vehicle.id, telemetry, prediction, confidence)
+                except Exception:
+                    pass
+                # ──────────────────────────────────────────────────────────
+
                 if confidence >= CONFIDENCE_THRESHOLD and prediction != "normal":
                     print(f"[ML] Issue detected — {vehicle.id}: '{prediction}' confidence={confidence * 100:.1f}%")
                     ACTIVE_PIPELINES.add(vehicle.id)

@@ -1,7 +1,7 @@
 'use client';
 
 import { NewBooking } from '@/types';
-import { AlertCircle } from 'lucide-react';
+
 
 interface NewBookingAlertProps {
   booking: NewBooking | null;

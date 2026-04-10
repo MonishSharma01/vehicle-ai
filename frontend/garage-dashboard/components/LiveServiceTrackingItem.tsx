@@ -1,7 +1,6 @@
 'use client';
 
 import { LiveJob } from '@/types';
-import { CheckCircle2, Clock } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 interface LiveTrackingItemProps {

@@ -102,10 +102,11 @@ class Booking:
 
 # ── In-memory database ──────────────────────────────────────────────────────
 DB: Dict[str, Any] = {
-    "vehicles": {},
-    "garages": {},
+    "vehicles":         {},
+    "garages":          {},
     "service_requests": {},
-    "bookings": {},
+    "bookings":         {},
+    "feedback":         {},
 }
 
 # Vehicles currently being processed — prevents duplicate pipelines

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import AuthGuard from "@/components/AuthGuard";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 
@@ -19,21 +20,23 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="flex h-screen bg-gray-50">
-          {/* Sidebar */}
-          <Sidebar />
-          
-          {/* Main Content */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            {/* Header */}
-            <Header />
+        <AuthGuard>
+          <div className="flex h-screen bg-gray-50">
+            {/* Sidebar */}
+            <Sidebar />
             
-            {/* Page Content */}
-            <main className="flex-1 overflow-y-auto">
-              {children}
-            </main>
+            {/* Main Content */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              {/* Header */}
+              <Header />
+              
+              {/* Page Content */}
+              <main className="flex-1 overflow-y-auto">
+                {children}
+              </main>
+            </div>
           </div>
-        </div>
+        </AuthGuard>
       </body>
     </html>
   );

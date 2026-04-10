@@ -48,6 +48,14 @@ export const Layout = () => {
             <i className="fa-solid fa-chart-pie"></i>
             <span>AI Analytics</span>
           </NavLink>
+          <NavLink to="/analytics-dashboard" className={navCls}>
+            <i className="fa-solid fa-chart-line"></i>
+            <span>Live Dashboard</span>
+          </NavLink>
+          <NavLink to="/garage-routing" className={navCls}>
+            <i className="fa-solid fa-route"></i>
+            <span>AI Routing</span>
+          </NavLink>
         </nav>
         <div className="sidebar-footer">v4.0.0 — React Edition</div>
       </aside>

@@ -69,7 +69,38 @@ export const api = {
   getRequests: () => get<BackendRequest[]>('/requests'),
   getBookings: () => get<BackendBooking[]>('/bookings'),
   getStatus:   () => get<BackendStatus>('/status'),
+  getGarageRouting: () => get<GarageRoutingEntry[]>('/admin/garage-routing'),
+  cancelBooking: (bookingId: string) => post<{ message: string }>(`/bookings/${bookingId}/cancel`),
   forceIssue:  (vehicleId: string, issueType: string) =>
     post<{ message: string }>(`/simulate/force-issue/${vehicleId}/${issueType}`),
   reset: () => post<{ message: string }>('/simulate/reset'),
 };
+
+export interface GarageEntry {
+  rank: number;
+  id: string;
+  name: string;
+  address: string;
+  rating: number;
+  slots: number;
+  distance_km: number;
+  score: number;
+  specializations: string[];
+  tried: boolean;
+  current: boolean;
+  rejected: boolean;
+}
+
+export interface GarageRoutingEntry {
+  request_id: string;
+  vehicle_id: string;
+  owner: string;
+  model: string;
+  issue: string;
+  confidence: number;
+  urgency: string;
+  status: string;
+  booking_id: string | null;
+  booking_status: string | null;
+  garages: GarageEntry[];
+}

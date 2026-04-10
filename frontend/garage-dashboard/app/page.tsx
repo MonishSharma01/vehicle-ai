@@ -120,7 +120,7 @@ export default function Dashboard() {
     fetchData();
   };
 
-  const handleSubmission = (jobId: string) => {
+  const handleSubmission = () => {
     showToast('Order submitted successfully!', 'info');
   };
 

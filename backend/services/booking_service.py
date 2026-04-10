@@ -1,12 +1,21 @@
 """
 booking_service.py — Creates a confirmed booking after user acceptance.
-                      Stores to in-memory DB and prints confirmation for both parties.
+                      Stores to in-memory DB and mirrors to Supabase (non-blocking).
 """
 import uuid
 from datetime import datetime
 from typing import List
 
 from models.models import DB, Booking, ACTIVE_PIPELINES, SERVICE_DETAILS
+
+
+def _supabase_sync(booking) -> None:
+    """Fire-and-forget Supabase sync — never raises."""
+    try:
+        from db.supabase_client import sync_booking
+        sync_booking(booking)
+    except Exception:
+        pass
 
 
 async def create_booking(vehicle, garage, request):
@@ -29,6 +38,8 @@ async def create_booking(vehicle, garage, request):
     request.booking_id = booking.id
 
     garage.available_slots = max(0, garage.available_slots - 1)
+
+    _supabase_sync(booking)
 
     print(f"[BOOKING] 🔔 Booking {booking.id} sent to garage {garage.name}")
     print(f"          Vehicle  : {vehicle.id} — {vehicle.model} | {vehicle.owner_name}")
@@ -62,5 +73,6 @@ def create_booking_sync(vehicle, garage, request):
     )
     DB["bookings"][booking.id] = booking
     garage.available_slots = max(0, garage.available_slots - 1)
+    _supabase_sync(booking)
     return booking
 

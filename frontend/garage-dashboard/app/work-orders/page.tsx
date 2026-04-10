@@ -6,7 +6,7 @@ import { WorkOrder, Service } from '@/types';
 import { mockServices } from '@/lib/mockData';
 import { generateId } from '@/lib/utils';
 import { Eye, X } from 'lucide-react';
-import { getGarageBookings } from '@/lib/api';
+import { getGarageBookings, completeBooking } from '@/lib/api';
 
 interface WorkOrderFormData {
   customerName: string;
@@ -411,6 +411,25 @@ export default function WorkOrdersPage() {
               >
                 Close
               </button>
+              {detailedOrder.status !== 'Completed' && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await completeBooking(detailedOrder.id);
+                      setWorkOrders(prev =>
+                        prev.map(o => o.id === detailedOrder.id ? { ...o, status: 'Completed' } : o)
+                      );
+                      setShowDetailsModal(null);
+                      showToast('Work order marked as completed!');
+                    } catch {
+                      showToast('Failed to update status', 'error');
+                    }
+                  }}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-medium"
+                >
+                  ✓ Mark as Done
+                </button>
+              )}
             </div>
           </div>
         </div>
