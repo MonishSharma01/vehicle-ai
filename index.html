@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Company View</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="app.js"></script>
+  <style>
+    .terminal-view { background: #111827; color: #10B981; font-family: 'Courier New', Courier, monospace; padding: 16px; border-radius: 8px; height: 260px; overflow-y: auto; font-size: .85rem; line-height: 1.6; }
+    .log-err { color: #EF4444; }
+    .log-warn { color: #F59E0B; }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <i class="fa-solid fa-cube"></i><span>AgenticAdmin</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="index.html" class="nav-link active"><i class="fa-solid fa-house"></i><span>Dashboard</span></a>
+      <a href="vehicles.html" class="nav-link"><i class="fa-solid fa-car"></i><span>Fleet Status</span></a>
+      <a href="garages.html" class="nav-link"><i class="fa-solid fa-warehouse"></i><span>Garages</span></a>
+      <a href="analytics.html" class="nav-link"><i class="fa-solid fa-chart-pie"></i><span>AI Analytics</span></a>
+    </nav>
+    <div class="sidebar-footer">v3.0.0 — Moduled Edition</div>
+  </aside>
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-clock" id="liveClock">00:00:00</div>
+    <div class="topbar-status"><span class="dot"></span> All Systems Operational</div>
+    <div class="topbar-avatar" title="Admin Profile">A</div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="main" id="mainContent">
+
+    <div class="welcome-banner animate-in">
+      <div>
+        <h1 id="welcomeMsg">Good morning, Admin</h1>
+        <p class="welcome-sub" id="welcomeDate"></p>
+      </div>
+      <div class="welcome-right">
+        <div>See ALL vehicles, ALL garages, ALL AI activity</div>
+        <div style="font-weight:600;color:var(--primary);margin-top:4px;">ADMIN COMPANY VIEW</div>
+      </div>
+    </div>
+
+    <!-- SYSTEM HEALTH METRICS -->
+    <div class="section-header">
+      <h2><i class="fa-solid fa-heart-pulse" style="color:var(--danger)"></i> System Health Metrics</h2>
+    </div>
+    <section class="stats-grid" style="margin-top:-10px;">
+      <div class="stat-card animate-in">
+        <div class="stat-header"><div class="stat-icon"><i class="fa-solid fa-car-side"></i></div></div>
+        <div class="stat-label">Total Active Vehicles</div>
+        <div class="stat-value" id="statVehicles">247</div>
+        <div class="stat-change up"><i class="fa-solid fa-arrow-trend-up"></i> Operational</div>
+      </div>
+      <div class="stat-card animate-in">
+        <div class="stat-header"><div class="stat-icon"><i class="fa-solid fa-brain"></i></div></div>
+        <div class="stat-label">AI Prediction Accuracy</div>
+        <div class="stat-value"><span id="statAccuracy">94</span>%</div>
+        <div class="stat-change up" id="accChange"><i class="fa-solid fa-arrow-trend-up"></i> Optimal</div>
+      </div>
+      <div class="stat-card animate-in">
+        <div class="stat-header"><div class="stat-icon"><i class="fa-solid fa-bolt"></i></div></div>
+        <div class="stat-label">Avg Response Time</div>
+        <div class="stat-value"><span id="statResponse">2.3</span>s</div>
+        <div class="stat-change down"><i class="fa-solid fa-arrow-trend-down"></i> Excellent</div>
+      </div>
+      <div class="stat-card animate-in">
+        <div class="stat-header"><div class="stat-icon"><i class="fa-solid fa-bug"></i></div></div>
+        <div class="stat-label">Anomalies Detected Today</div>
+        <div class="stat-value" id="statAnomalies">3</div>
+        <div class="stat-change warn"><i class="fa-solid fa-triangle-exclamation"></i> Action required</div>
+      </div>
+    </section>
+
+    <!-- QUICK ACTIONS -->
+    <section class="white-card animate-in" style="margin-top:20px;">
+      <div class="section-header" style="margin-bottom:20px;">
+        <h2><i class="fa-solid fa-bolt" style="color:var(--success)"></i> Quick Actions (Admin Can Do)</h2>
+      </div>
+      <div class="quick-actions">
+        <button class="btn-quick btn-primary" onclick="window.location.href='garages.html'"><i class="fa-solid fa-house-medical"></i> Add New Garage</button>
+        <button class="btn-quick" id="btnRetrain" onclick="retrainAI()"><i class="fa-solid fa-robot"></i> Retrain AI Model</button>
+        <button class="btn-quick" onclick="exportData()"><i class="fa-solid fa-database"></i> Export All Data</button>
+        <button class="btn-quick" onclick="openModal('logsModal')"><i class="fa-solid fa-terminal"></i> View System Logs</button>
+        <button class="btn-quick" onclick="openModal('alertModal')"><i class="fa-solid fa-bullhorn"></i> Send Alert to All</button>
+        <button class="btn-quick" id="btnDiag" onclick="runDiagnostics()"><i class="fa-solid fa-stethoscope"></i> Run Diagnostics</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- LOGS MODAL -->
+<div class="modal-overlay" id="logsModal">
+  <div class="modal" style="width:700px;">
+    <button class="modal-close" onclick="closeModal('logsModal')">&times;</button>
+    <h3>System Logs</h3>
+    <p class="modal-sub">Live readout from AI microservices and Agents.</p>
+    
+    <div class="terminal-view" id="terminalView">
+      [INFO] 2026-04-10 13:00:01 - Core engine started.<br>
+      [INFO] 2026-04-10 13:00:05 - Connection pool established (max: 50).<br>
+      [WARN] <span class="log-warn">2026-04-10 13:05:12 - High latency detected on PredictionAgent-A.</span><br>
+      [INFO] 2026-04-10 13:06:00 - Data synchronization complete.<br>
+      <span class="log-err">[ERR]  2026-04-10 08:45:00 - Pricing Agent failed to respond. Attempting restart.</span><br>
+      [INFO] 2026-04-10 08:45:03 - Pricing Agent successfully restarted.<br>
+    </div>
+  </div>
+</div>
+
+<!-- BROADCAST MODAL -->
+<div class="modal-overlay" id="alertModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('alertModal')">&times;</button>
+    <h3>Broadcast System Alert</h3>
+    <p class="modal-sub">Send a push notification to all linked facility managers and vehicle screens.</p>
+    <div class="form-group">
+      <label>Alert Message</label>
+      <textarea rows="4" class="form-control" id="alertText" placeholder="System maintenance scheduled for tonight at 2AM EST..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>Severity Level</label>
+      <select class="form-control" id="alertSeverity">
+        <option value="info">Informational</option>
+        <option value="warning">Warning</option>
+        <option value="critical">Critical</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('alertModal')">Cancel</button>
+      <button class="btn-confirm" onclick="sendBroadcast()"><i class="fa-solid fa-paper-plane"></i> Dispatch Global Alert</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('statAnomalies').textContent = anomalies.length;
+  });
+
+  function retrainAI() {
+    const btn = document.getElementById('btnRetrain');
+    btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Processing...`;
+    btn.disabled = true;
+    showToast('Initiating model parameter optimization...', 'info');
+    setTimeout(() => {
+      btn.innerHTML = `<i class="fa-solid fa-robot"></i> Retrain AI Model`;
+      btn.disabled = false;
+      let accEl = document.getElementById('statAccuracy');
+      accEl.textContent = (parseFloat(accEl.textContent) + 0.5).toFixed(1);
+      showToast('AI Model Retrained. Accuracy improved!', 'success');
+      
+      const term = document.getElementById('terminalView');
+      term.innerHTML += `[SUCCESS] ${formatTime(new Date())} - Synthetic data cycle complete. Weights updated.<br>`;
+      term.scrollTop = term.scrollHeight;
+      
+    }, 2500);
+  }
+
+  function exportData() {
+    showToast('Platform Dataset snapshot initiated...', 'info');
+    setTimeout(() => {
+        showToast('Snapshot downloaded successfully to local machine.', 'success');
+    }, 1000);
+  }
+
+  function sendBroadcast() {
+    const txt = document.getElementById('alertText').value;
+    if(!txt) { showToast('Alert message cannot be blank', 'error'); return; }
+    
+    closeModal('alertModal');
+    showToast('Global Alert successfully broadcast to entire fleet network!', 'success');
+    document.getElementById('alertText').value = '';
+    
+    const term = document.getElementById('terminalView');
+    term.innerHTML += `[INFO] ${formatTime(new Date())} - GLOBAL BROADCAST: "${txt.substring(0,25)}..."<br>`;
+    term.scrollTop = term.scrollHeight;
+  }
+
+  function runDiagnostics() {
+    const btn = document.getElementById('btnDiag');
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Running Diagnostics...`;
+    showToast('Diagnostics trace started. Pinging all microservices...', 'info');
+    setTimeout(() => {
+      btn.innerHTML = `<i class="fa-solid fa-stethoscope"></i> Run Diagnostics`;
+      showToast('Diagnostics completed. All sub-agents are healthy.', 'success');
+      
+      const term = document.getElementById('terminalView');
+      term.innerHTML += `[INFO] ${formatTime(new Date())} - Diagnostics Trace: Health 100%. Node A, Node B responsive.<br>`;
+      term.scrollTop = term.scrollHeight;
+    }, 3000);
+  }
+</script>
+</body>
+</html>
