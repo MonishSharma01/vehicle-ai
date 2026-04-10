@@ -1,10 +1,47 @@
 """
-Scheduling Agent - Manages vehicle scheduling and availability.
+SchedulingAgent — Sends service request to garages in ranked order.
+                   Simulates garage accept/reject with timeout. Chains to next garage on rejection.
 """
+import asyncio
+import random
+
+from models.models import ACTIVE_PIPELINES, SERVICE_DETAILS
+
+GARAGE_ACCEPT_PROB = 0.70
+GARAGE_RESPONSE_DELAY = 1.5
+
 
 class SchedulingAgent:
-    def __init__(self):
-        pass
-    
-    def schedule(self):
-        pass
+    def _simulate_garage_decision(self) -> bool:
+        return random.random() < GARAGE_ACCEPT_PROB
+
+    async def try_garage_chain(self, vehicle, request, garages: list, index: int):
+        from agents.feedback_agent import FeedbackAgent
+        feedback_agent = FeedbackAgent()
+
+        if index >= len(garages):
+            print(f"[GARAGE] All {len(garages)} garages rejected request {request.id}.")
+            print(f"[GARAGE] No service available for {vehicle.owner_name} ({vehicle.id})")
+            request.status = "ALL_REJECTED"
+            ACTIVE_PIPELINES.discard(vehicle.id)
+            return
+
+        garage = garages[index]
+        request.garages_tried.append(garage.id)
+        svc = SERVICE_DETAILS.get(request.ml_result.prediction, {})
+
+        print(f"[GARAGE] Request {request.id} sent to garage #{index + 1}: {garage.name}")
+        print(f"         Service : {svc.get('service')} | Cost: {svc.get('estimated_cost')}")
+        print(f"         Issue   : {request.ml_result.prediction} | Confidence: {request.ml_result.confidence * 100:.1f}%")
+        print(f"         Urgency : {request.urgency} | Timeout: {GARAGE_RESPONSE_DELAY}s (simulated)")
+
+        await asyncio.sleep(GARAGE_RESPONSE_DELAY)
+        accepted = self._simulate_garage_decision()
+
+        if accepted:
+            print(f"[GARAGE] {garage.name} ACCEPTED request {request.id}")
+            request.status = "GARAGE_ACCEPTED"
+            await feedback_agent.notify_user(vehicle, garage, request)
+        else:
+            print(f"[GARAGE] {garage.name} REJECTED request {request.id} — trying next garage")
+            await self.try_garage_chain(vehicle, request, garages, index + 1)

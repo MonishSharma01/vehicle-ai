@@ -136,9 +136,19 @@ class PriorityResult:
 
 class PriorityAgent:
     """
-    Stateless, logic-based priority calculation agent.
-    Call PriorityAgent.evaluate(...) directly — no instantiation needed.
+    Priority calculation agent + garage rejection notifier.
+    Call PriorityAgent.evaluate(...) for risk scoring.
+    Call await PriorityAgent().notify_garage_of_rejection(...) in the booking pipeline.
     """
+
+    async def notify_garage_of_rejection(self, vehicle, garage, request):
+        import asyncio
+        print(f"[REJECT] Notifying {garage.name} that user declined")
+        print(f"         Request : {request.id} | Issue: {request.ml_result.prediction}")
+        print(f"         Message : '{vehicle.owner_name}' declined your service offer")
+        print(f"[REJECT] Slot restored for {garage.name} (slots: {garage.available_slots} → {garage.available_slots + 1})")
+        garage.available_slots += 1
+        await asyncio.sleep(0)
 
     @staticmethod
     def evaluate(

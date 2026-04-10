@@ -23,7 +23,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from models.models import DB, ACTIVE_PIPELINES, seed_vehicles, seed_garages, reset_db
-from services.telemetry_monitor import monitor_loop, FORCE_ISSUE
+from agents.tracking_agent import FORCE_ISSUE
 
 
 # ── Lifespan: seed data + start background monitor ──────────────────────────
@@ -32,7 +32,8 @@ async def lifespan(app: FastAPI):
     seed_vehicles()
     seed_garages()
     print("[MAIN] Seeded vehicles and garages.")
-    task = asyncio.create_task(monitor_loop())
+    from agents.master_agent import MasterAgent
+    task = asyncio.create_task(MasterAgent().start())
     yield
     task.cancel()
     try:
