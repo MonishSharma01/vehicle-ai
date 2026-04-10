@@ -1,45 +1,93 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   Platform,
   TextInput,
   Animated,
   KeyboardAvoidingView,
   ActivityIndicator,
+  Dimensions,
+  StatusBar
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 
-type AppState = 'login' | 'loading' | 'dashboard' | 'diagnosis' | 'rejected' | 'accepted';
+const { width } = Dimensions.get('window');
 
-export default function AppFlowScreen() {
-  const [appState, setAppState] = useState<AppState>('login');
+type AppState = 'splash' | 'login' | 'loading' | 'dashboard' | 'diagnosis' | 'rejected' | 'accepted';
+
+const GARAGES = [
+  { id: 1, name: 'ElectroFix Auto', price: 1200, rating: '4.2', recommended: false },
+  { id: 2, name: 'Prime Motors Services', price: 900, rating: '4.5', recommended: true },
+];
+
+export default function AutomobileApp() {
+  const [appState, setAppState] = useState<AppState>('splash');
+  const [showSplash, setShowSplash] = useState(true);
   
   const [ownerName, setOwnerName] = useState('');
   const [vehicleNumber, setVehicleNumber] = useState('');
   const [selectedGarageId, setSelectedGarageId] = useState<number>(2);
 
-  // Animations
+  // General Animations
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const alertFadeAnim = useRef(new Animated.Value(0)).current;
+  const buttonScale = useRef(new Animated.Value(1)).current;
 
-  // Mock Datas
-  const MOCK_DIAGNOSIS = {
-    model: 'Swift Dzire',
-    prediction: 'Battery Degradation',
-    recommendation: 'Battery Check and Replacement',
-    riskScore: 72,
-    riskText: 'Medium Risk',
+  // Splash Screen Animations
+  const splashCarTranslateX = useRef(new Animated.Value(width * 1.2)).current;
+  const splashOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (appState === 'splash') {
+      Animated.sequence([
+        Animated.delay(300),
+        // Drive into center from right
+        Animated.spring(splashCarTranslateX, {
+          toValue: 0,
+          bounciness: 5,
+          speed: 12,
+          useNativeDriver: true,
+        }),
+        Animated.delay(1200), // Admire the car
+        // Drive off screen rapidly to the left (straight)
+        Animated.timing(splashCarTranslateX, {
+          toValue: -width * 1.5,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(splashOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        })
+      ]).start(() => {
+        setShowSplash(false);
+        setAppState('login');
+      });
+    }
+  }, []);
+
+  const handlePressIn = () => {
+    Animated.spring(buttonScale, {
+      toValue: 0.96,
+      useNativeDriver: true,
+    }).start();
   };
 
-  const MOCK_GARAGES = [
-    { id: 1, name: 'ElectroFix Auto Garage', price: 1200, rating: '4.5 ⭐', recommended: false },
-    { id: 2, name: 'Prime Motors Services', price: 900, rating: '4.8 ⭐', recommended: true },
-  ];
+  const handlePressOut = () => {
+    Animated.spring(buttonScale, {
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  };
 
   const transitionTo = (nextState: AppState, duration = 300) => {
     Animated.timing(fadeAnim, {
@@ -70,11 +118,9 @@ export default function AppFlowScreen() {
 
     transitionTo('loading', 400);
 
-    // Simulate scanning delay
     setTimeout(() => {
       transitionTo('dashboard', 400);
 
-      // Slide in AI alert slightly after dashboard load
       setTimeout(() => {
         Animated.timing(alertFadeAnim, {
           toValue: 1,
@@ -86,632 +132,697 @@ export default function AppFlowScreen() {
     }, 2500);
   };
 
-  const getSelectedGarage = () => {
-    return MOCK_GARAGES.find(g => g.id === selectedGarageId) || MOCK_GARAGES[1];
-  };
-
-  const activeGarage = getSelectedGarage();
+  const activeGarage = GARAGES.find(g => g.id === selectedGarageId) || GARAGES[1];
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboardView}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+    <View style={styles.mainContainer}>
+      <StatusBar barStyle="light-content" />
+
+      {/* Red Gradient Audi Background */}
+      <LinearGradient
+        colors={['#5A0010', '#8D061A', '#C62E3B', '#F1DDE0', '#FAFAFA', '#FFFFFF']}
+        locations={[0, 0.1, 0.35, 0.55, 0.65, 0.7]}
+        style={StyleSheet.absoluteFillObject}
+      />
+
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardView}
         >
-          {appState === 'login' && (
-            <View style={styles.topBrandingLogin}>
-              <View style={styles.logoCircle}>
-                <Text style={styles.logoEmoji}>⚕️</Text>
-              </View>
-              <Text style={styles.brandTitle}>AUTOMIND AI</Text>
-              <Text style={styles.brandSubtitle}>Intelligence for Every Engine</Text>
-            </View>
-          )}
-
-          <Animated.View style={[{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], width: '100%', maxWidth: 450, alignItems: 'center' }]}>
-            
-            {/* ================= STEP 1: LOGIN ================= */}
-            {appState === 'login' && (
-              <View style={styles.card}>
-                <Text style={styles.cardHeader}>User Login</Text>
-                
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Owner Name</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="e.g. Rahul Sharma"
-                    placeholderTextColor="#9CA3AF"
-                    value={ownerName}
-                    onChangeText={setOwnerName}
-                  />
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Vehicle Number</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="e.g. MH 04 XY 1234"
-                    placeholderTextColor="#9CA3AF"
-                    value={vehicleNumber}
-                    onChangeText={setVehicleNumber}
-                    autoCapitalize="characters"
-                  />
-                </View>
-
-                <TouchableOpacity
-                  style={[
-                    styles.primaryButton,
-                    (!ownerName.trim() || !vehicleNumber.trim()) && styles.buttonDisabled,
-                  ]}
-                  onPress={handleLogin}
-                  disabled={!ownerName.trim() || !vehicleNumber.trim()}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.primaryButtonText}>Login</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* ================= LOADING ================= */}
-            {appState === 'loading' && (
-              <View style={styles.loaderContainer}>
-                <ActivityIndicator size="large" color="#2563EB" />
-                <Text style={styles.loaderText}>Scanning vehicle sensors...</Text>
-              </View>
-            )}
-
-            {/* ================= STEP 2: DASHBOARD ================= */}
-            {appState === 'dashboard' && (
-              <View style={styles.viewContainer}>
-                <Text style={styles.sectionHeaderTitle}>Dashboard</Text>
-
-                <View style={styles.card}>
-                  <View style={styles.dashboardHeader}>
-                    <View>
-                      <Text style={styles.dashboardGreeting}>Hello, {ownerName}</Text>
-                      <Text style={styles.vehicleModel}>{MOCK_DIAGNOSIS.model}</Text>
-                    </View>
-                    <Text style={styles.dashboardBadge}>{vehicleNumber}</Text>
-                  </View>
-                </View>
-
-                <Text style={styles.subSectionTitle}>Health Summary</Text>
-                <View style={styles.gridContainer}>
-                  <View style={styles.gridCard}>
-                    <Text style={styles.gridIcon}>🔋</Text>
-                    <Text style={styles.gridLabel}>Battery</Text>
-                    <Text style={styles.gridValueCaution}>Degrading</Text>
-                  </View>
-                  <View style={styles.gridCard}>
-                    <Text style={styles.gridIcon}>🌡️</Text>
-                    <Text style={styles.gridLabel}>Engine Temp</Text>
-                    <Text style={styles.gridValue}>89°C</Text>
-                  </View>
-                  <View style={styles.gridCard}>
-                    <Text style={styles.gridIcon}>🛢️</Text>
-                    <Text style={styles.gridLabel}>Oil Life</Text>
-                    <Text style={styles.gridValue}>42%</Text>
-                  </View>
-                </View>
-
-                {/* AI ALERT (Fades in) */}
-                <Animated.View style={{ opacity: alertFadeAnim, marginTop: 24 }}>
-                  <View style={[styles.card, styles.alertCardBg]}>
-                    <View style={styles.alertHeader}>
-                      <Text style={styles.alertIcon}>⚠️</Text>
-                      <Text style={styles.alertTitle}>Battery issue detected</Text>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <Animated.View style={[{ opacity: fadeAnim, transform: [{ translateY: slideAnim }], width: '100%', alignItems: 'center' }]}>
+              
+              {/* ================= STEP 1: LOGIN ================= */}
+              {appState === 'login' && (
+                <View style={styles.contentPadderLogin}>
+                  <View style={styles.loginCard}>
+                    <View style={styles.brandingCenter}>
+                      <Ionicons name="car-sport" size={60} color="#C8001F" />
+                      <Text style={styles.titleText}>AutoMind AI</Text>
+                      <Text style={styles.subtitleText}>The Intelligence for your engine</Text>
                     </View>
                     
-                    <Text style={styles.alertUrgencyText}>
-                      Action required within 3 days
-                    </Text>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Owner Name</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="e.g. John Doe"
+                        placeholderTextColor="#9CA3AF"
+                        value={ownerName}
+                        onChangeText={setOwnerName}
+                      />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Vehicle Number Plate</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="MH12AB1234"
+                        placeholderTextColor="#9CA3AF"
+                        value={vehicleNumber}
+                        onChangeText={setVehicleNumber}
+                        autoCapitalize="characters"
+                      />
+                    </View>
+
+                    <Animated.View style={{ transform: [{ scale: buttonScale }], width: '100%', marginTop: 10 }}>
+                      <TouchableOpacity
+                        style={[styles.primaryButton, (!ownerName.trim() || !vehicleNumber.trim()) && styles.buttonDisabled]}
+                        onPressIn={handlePressIn}
+                        onPressOut={handlePressOut}
+                        onPress={handleLogin}
+                        disabled={!ownerName.trim() || !vehicleNumber.trim()}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.primaryButtonText}>ADD YOUR VEHICLE</Text>
+                      </TouchableOpacity>
+                    </Animated.View>
+                  </View>
+                </View>
+              )}
+
+              {/* ================= LOADING ================= */}
+              {appState === 'loading' && (
+                <View style={styles.loaderContainer}>
+                  <ActivityIndicator size="large" color="#FFFFFF" />
+                  <Text style={[styles.loaderText, { color: '#FFFFFF' }]}>Scanning vehicle sensors...</Text>
+                </View>
+              )}
+
+              {/* ================= STEP 2: DASHBOARD ================= */}
+              {appState === 'dashboard' && (
+                <View style={styles.contentPadder}>
+                  
+                  {/* Faux Header imitating the reference */}
+                  <View style={styles.topHeaderFlex}>
+                    <Ionicons name="menu" size={28} color="#FFF" />
+                    <Text style={styles.topHeaderTitle}>Vehicle Status</Text>
+                    <Ionicons name="notifications-outline" size={24} color="#FFF" />
+                  </View>
+
+                  <View style={styles.dashboardHeader}>
+                    <Text style={styles.dashboardGreeting}>Hi {ownerName || 'Aryan'} 👋</Text>
+                    <Text style={styles.dashboardVehicle}>Vehicle: {GARAGES.length > 0 ? "Audi S5 Sportback" : "Swift Dzire"}</Text>
+                  </View>
+
+                  <View style={styles.healthStatsGrid}>
+                    <View style={styles.healthCard}>
+                      <Ionicons name="battery-dead" size={26} color="#4B5563" style={styles.iconSpaced} />
+                      <Text style={styles.healthCardLabel}>Battery Health</Text>
+                      <Text style={styles.healthCardValueRed}>65%</Text>
+                    </View>
+                    <View style={styles.healthCard}>
+                      <MaterialCommunityIcons name="thermometer" size={26} color="#4B5563" style={styles.iconSpaced} />
+                      <Text style={styles.healthCardLabel}>Engine Temp</Text>
+                      <Text style={styles.healthCardValueNormal}>92°C</Text>
+                    </View>
+                    <View style={styles.healthCard}>
+                      <MaterialCommunityIcons name="oil" size={26} color="#4B5563" style={styles.iconSpaced} />
+                      <Text style={styles.healthCardLabel}>Oil Life</Text>
+                      <Text style={styles.healthCardValueNormal}>30%</Text>
+                    </View>
+                  </View>
+
+                  {/* AI ALERT */}
+                  <Animated.View style={{ opacity: alertFadeAnim, width: '100%' }}>
+                    <View style={[styles.card, styles.alertCardBg]}>
+                      <View style={styles.alertHeaderRow}>
+                        <Text style={styles.alertIconEmoji}>⚠️</Text>
+                        <Text style={styles.alertTitle}>Battery Issue Detected</Text>
+                      </View>
+                      
+                      <Text style={styles.alertUrgencyText}>
+                        Action required within 3 days
+                      </Text>
+
+                      <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+                        <TouchableOpacity
+                          style={styles.primaryButton}
+                          onPressIn={handlePressIn}
+                          onPressOut={handlePressOut}
+                          onPress={() => transitionTo('diagnosis')}
+                          activeOpacity={0.8}
+                        >
+                          <View style={styles.rowCentered}>
+                            <Text style={styles.primaryButtonText}>View Details</Text>
+                            <Ionicons name="arrow-forward" size={18} color="#FFF" style={{ marginLeft: 6 }} />
+                          </View>
+                        </TouchableOpacity>
+                      </Animated.View>
+                    </View>
+                  </Animated.View>
+                </View>
+              )}
+
+              {/* ================= STEP 3 & 4: DIAGNOSIS & DECISION ================= */}
+              {appState === 'diagnosis' && (
+                <View style={[styles.contentPadder, { paddingTop: 60 }]}>
+                  
+                  <View style={styles.card}>
+                    <Text style={styles.cardSectionTitleCenter}>Diagnosis Report</Text>
+                    
+                    <View style={styles.dataRow}>
+                      <Text style={styles.dataLabel}>Prediction</Text>
+                      <Text style={styles.dataValueBold}>Battery Issue</Text>
+                    </View>
+                    <View style={styles.divider} />
+                    
+                    <View style={styles.dataRow}>
+                      <Text style={styles.dataLabel}>Recommendation</Text>
+                      <Text style={styles.dataValueBold}>Battery Check Required</Text>
+                    </View>
+                    <View style={styles.divider} />
+
+                    <View style={styles.dataRow}>
+                      <Text style={styles.dataLabel}>Risk Score</Text>
+                      <View style={styles.riskBadge}>
+                        <Text style={styles.riskBadgeText}>72% Risk (Medium)</Text>
+                      </View>
+                    </View>
+                    
+                    {/* Progress bar mapped to 72% */}
+                    <View style={styles.progressBarWrapper}>
+                      <View style={[styles.progressBarFill, { width: '72%' }]} />
+                    </View>
+                  </View>
+
+                  {/* AI ASSISTANT CARD */}
+                  <View style={styles.aiCard}>
+                    <Ionicons name="sparkles" size={20} color="#C8001F" style={{ marginTop: 2, marginRight: 10 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.aiCardText}>
+                        <Text style={styles.aiCardBold}>AI Assistant:</Text> Your battery health is degrading. Immediate service is recommended to avoid breakdown.
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* GARAGES */}
+                  <View style={{ width: '100%', marginTop: 10, marginBottom: 10 }}>
+                    {GARAGES.map((garage) => (
+                      <TouchableOpacity
+                        key={garage.id}
+                        style={[
+                          styles.card,
+                          styles.garageRowLayout,
+                          garage.recommended && styles.recommendedGarageCard,
+                          selectedGarageId === garage.id && styles.selectedGarageCard
+                        ]}
+                        onPress={() => setSelectedGarageId(garage.id)}
+                        activeOpacity={0.7}
+                      >
+                        {garage.recommended && (
+                          <View style={styles.recommendedBadge}>
+                            <Text style={styles.recommendedBadgeText}>💡 Recommended – Best Value</Text>
+                          </View>
+                        )}
+                        <View>
+                          <Text style={styles.garageName}>{garage.name}</Text>
+                          <Text style={styles.garageRating}>⭐ {garage.rating}</Text>
+                        </View>
+                        <Text style={styles.garagePrice}>₹{garage.price}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+
+                  {/* DECISION BUTTONS */}
+                  <View style={styles.actionButtonsContainer}>
+                    <Animated.View style={{ transform: [{ scale: buttonScale }] }}>
+                      <TouchableOpacity
+                        style={[styles.primaryButton, { backgroundColor: '#10B981' }]} // Keep Success Green
+                        onPressIn={handlePressIn}
+                        onPressOut={handlePressOut}
+                        onPress={() => transitionTo('accepted')}
+                        activeOpacity={0.8}
+                      >
+                        <View style={styles.rowCentered}>
+                          <Text style={styles.primaryButtonText}>✅ Accept Service</Text>
+                        </View>
+                      </TouchableOpacity>
+                    </Animated.View>
 
                     <TouchableOpacity
-                      style={styles.alertButton}
-                      onPress={() => transitionTo('diagnosis')}
+                      style={styles.secondaryButton}
+                      onPress={() => transitionTo('rejected')}
                       activeOpacity={0.8}
                     >
-                      <Text style={styles.alertButtonText}>View Details</Text>
+                      <Text style={styles.secondaryButtonText}>❌ Reject</Text>
                     </TouchableOpacity>
                   </View>
-                </Animated.View>
-              </View>
-            )}
-
-            {/* ================= STEP 3 & 4 & 5: DIAGNOSIS & GARAGES & DECISION ================= */}
-            {appState === 'diagnosis' && (
-              <View style={styles.viewContainer}>
-                <Text style={styles.sectionHeaderTitle}>Diagnosis Report</Text>
-
-                {/* Diagnosis Details */}
-                <View style={styles.card}>
-                  <View style={styles.reportRow}>
-                    <Text style={styles.reportLabel}>Prediction</Text>
-                    <Text style={styles.reportValueEmphasis}>{MOCK_DIAGNOSIS.prediction}</Text>
-                  </View>
-                  <View style={styles.dividerSubtle} />
-                  
-                  <View style={styles.reportRow}>
-                    <Text style={styles.reportLabel}>Recommendation</Text>
-                    <Text style={styles.reportValue}>{MOCK_DIAGNOSIS.recommendation}</Text>
-                  </View>
-                  <View style={styles.dividerSubtle} />
-
-                  <View style={styles.reportRow}>
-                    <Text style={styles.reportLabel}>Risk Score</Text>
-                    <View style={styles.riskScoreBadge}>
-                      <Text style={styles.riskBadgeText}>{MOCK_DIAGNOSIS.riskScore}% ({MOCK_DIAGNOSIS.riskText})</Text>
-                    </View>
-                  </View>
-                  
-                  <View style={styles.progressBarWrapper}>
-                    <View style={[styles.progressBarFill, { width: `${MOCK_DIAGNOSIS.riskScore}%` }]} />
-                  </View>
                 </View>
+              )}
 
-                {/* AI ASSISTANT SMART CARD */}
-                <View style={styles.aiAssistantCard}>
-                  <Text style={styles.aiAssistantIcon}>🧠</Text>
-                  <View style={styles.aiAssistantContent}>
-                    <Text style={styles.aiAssistantLabel}>AI Assistant Insight</Text>
-                    <Text style={styles.aiAssistantText}>
-                      Your battery health is degrading. Immediate service is recommended to avoid sudden breakdown in the next 72 hours.
-                    </Text>
-                  </View>
-                </View>
-
-                {/* GARAGE COMPARISON */}
-                <Text style={styles.sectionTitle}>Garage Comparison</Text>
-                {MOCK_GARAGES.map((garage) => (
-                  <TouchableOpacity
-                    key={garage.id}
-                    style={[
-                      styles.card, 
-                      styles.garageCard,
-                      garage.recommended && styles.recommendedCardStyle,
-                      selectedGarageId === garage.id && styles.selectedGarageCard
-                    ]}
-                    onPress={() => setSelectedGarageId(garage.id)}
-                    activeOpacity={0.9}
-                  >
-                    {garage.recommended && (
-                      <View style={styles.recommendedBadgeTag}>
-                        <Text style={styles.recommendedBadgeTagText}>💡 Recommended – Best Value</Text>
-                      </View>
-                    )}
+              {/* ================= STEP 5: REJECT FLOW ================= */}
+              {appState === 'rejected' && (
+                <View style={[styles.contentPadder, { paddingTop: 60 }]}>
+                  <View style={styles.card}>
                     
-                    <View style={styles.garageHeader}>
-                      <Text style={styles.garageName}>{garage.name}</Text>
-                      <Text style={styles.garagePrice}>₹{garage.price}</Text>
-                    </View>
-                    <Text style={styles.garageRating}>Rating: {garage.rating}</Text>
-                  </TouchableOpacity>
-                ))}
-
-                {/* USER DECISION */}
-                <View style={styles.decisionStack}>
-                  <TouchableOpacity
-                    style={styles.primaryButton}
-                    onPress={() => transitionTo('accepted')}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.primaryButtonText}>Accept Service</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.secondaryButton}
-                    onPress={() => transitionTo('rejected')}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.secondaryButtonText}>Reject</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={{ height: 40 }}/>
-              </View>
-            )}
-
-            {/* ================= STEP 6B: REJECTED WARNING ================= */}
-            {appState === 'rejected' && (
-              <View style={styles.viewContainer}>
-                <View style={[styles.card, styles.warningCardBg]}>
-                  <View style={styles.warningHeader}>
-                    <Text style={styles.warningTitleIcon}>🚨</Text>
-                    <Text style={styles.warningTitle}>Risk Warning</Text>
-                  </View>
-
-                  <Text style={styles.warningText}>
-                    Ignoring this issue may lead to engine failure and higher costs. Delaying service may increase cost by 2–3x.
-                  </Text>
-
-                  <View style={styles.costBox}>
-                    <View style={styles.costRow}>
-                      <Text style={styles.costLabel}>Fix now</Text>
-                      <Text style={styles.costValueGood}>₹{activeGarage.price}</Text>
-                    </View>
-                    <View style={styles.dividerSubtle} />
-                    <View style={styles.costRow}>
-                      <Text style={styles.costLabel}>Later estimate</Text>
-                      <Text style={styles.costValueBad}>₹2500+</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.aiInsightBox}>
-                    <Text style={styles.aiInsightIcon}>💡</Text>
-                    <Text style={styles.aiInsightText}>
-                      Smart Insight: Other garages may charge higher than ₹1200. We secured a reliable match for you.
+                    <Text style={styles.warningTitleCenter}>⚠️</Text>
+                    <Text style={styles.cardSectionTitleCenterDanger}>
+                      Ignoring this issue may cause engine failure
                     </Text>
-                  </View>
 
-                  <TouchableOpacity
-                    style={[styles.primaryButton, { marginTop: 20 }]}
-                    onPress={() => transitionTo('accepted')}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.primaryButtonText}>Reconsider & Accept</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {/* ================= STEP 6A: ACCEPTED RESOLVE ================= */}
-            {appState === 'accepted' && (
-              <View style={styles.viewContainer}>
-                <View style={[styles.card, styles.successCardStyle]}>
-                  <View style={styles.successHeader}>
-                    <View style={styles.successIconBg}>
-                      <Text style={styles.successIcon}>✅</Text>
+                    <View style={styles.costBox}>
+                      <View style={styles.dataRow}>
+                        <Text style={styles.dataLabel}>Fix now</Text>
+                        <Text style={styles.dataValueGreen}>₹{activeGarage.price}</Text>
+                      </View>
+                      <View style={styles.divider} />
+                      <View style={styles.dataRow}>
+                        <Text style={styles.dataLabel}>Later</Text>
+                        <Text style={styles.dataValueDanger}>₹2500+</Text>
+                      </View>
                     </View>
-                    <Text style={styles.successTitle}>Booking Confirmed</Text>
-                  </View>
 
-                  <View style={styles.reportRow}>
-                    <Text style={styles.reportLabel}>Selected Garage</Text>
-                    <Text style={styles.reportValueEmphasis}>{activeGarage.name}</Text>
-                  </View>
-                  <View style={styles.dividerSubtle} />
+                    <Text style={styles.textCautionCenter}>
+                      Delaying may increase cost 2–3x
+                    </Text>
 
-                  <View style={styles.reportRow}>
-                    <Text style={styles.reportLabel}>Final Price</Text>
-                    <Text style={styles.reportValueEmphasisSuccess}>₹{activeGarage.price}</Text>
-                  </View>
-                  <View style={styles.dividerSubtle} />
+                    <Animated.View style={{ transform: [{ scale: buttonScale }], marginTop: 24 }}>
+                      <TouchableOpacity
+                        style={styles.primaryButton}
+                        onPressIn={handlePressIn}
+                        onPressOut={handlePressOut}
+                        onPress={() => transitionTo('accepted')}
+                        activeOpacity={0.8}
+                      >
+                        <View style={styles.rowCentered}>
+                          <Text style={styles.primaryButtonText}>Reconsider & Accept</Text>
+                          <Ionicons name="arrow-forward" size={18} color="#FFF" style={{ marginLeft: 6 }} />
+                        </View>
+                      </TouchableOpacity>
+                    </Animated.View>
 
-                  <View style={styles.reportRow}>
-                    <Text style={styles.reportLabel}>Time Slot</Text>
-                    <Text style={styles.reportValue}>Tomorrow 10:00 AM</Text>
                   </View>
-
-                  <TouchableOpacity
-                    style={[styles.secondaryButton, { marginTop: 32 }]}
-                    onPress={() => transitionTo('dashboard')}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={styles.secondaryButtonText}>Return to Dashboard</Text>
-                  </TouchableOpacity>
                 </View>
-              </View>
-            )}
+              )}
 
+              {/* ================= STEP 6: ACCEPTED ================= */}
+              {appState === 'accepted' && (
+                <View style={[styles.contentPadder, { paddingTop: 60 }]}>
+                  <View style={[styles.card, { borderColor: '#10B981', borderWidth: 2 }]}>
+                    
+                    <View style={styles.successHeaderCentered}>
+                      <View style={styles.successCircle}>
+                        <Ionicons name="checkmark" size={40} color="#10B981" />
+                      </View>
+                      <Text style={styles.successTitle}>Booking Confirmed</Text>
+                    </View>
+
+                    <View style={{ marginTop: 20 }}>
+                      <View style={styles.dataRow}>
+                        <Text style={styles.dataLabel}>Garage</Text>
+                        <Text style={styles.dataValueBold}>{activeGarage.name}</Text>
+                      </View>
+                      <View style={styles.divider} />
+                      <View style={styles.dataRow}>
+                        <Text style={styles.dataLabel}>Price</Text>
+                        <Text style={styles.dataValueBold}>₹{activeGarage.price}</Text>
+                      </View>
+                      <View style={styles.divider} />
+                      <View style={styles.dataRow}>
+                        <Text style={styles.dataLabel}>Time</Text>
+                        <Text style={styles.dataValueBold}>Tomorrow 10 AM</Text>
+                      </View>
+                    </View>
+
+                    <Animated.View style={{ transform: [{ scale: buttonScale }], marginTop: 30 }}>
+                      <TouchableOpacity
+                        style={styles.secondaryButton}
+                        onPressIn={handlePressIn}
+                        onPressOut={handlePressOut}
+                        onPress={() => transitionTo('dashboard')}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.secondaryButtonText}>Return to Dashboard</Text>
+                      </TouchableOpacity>
+                    </Animated.View>
+
+                  </View>
+                </View>
+              )}
+
+            </Animated.View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+
+      {/* OVERLAY: SPLASH LOGO (Audi Theme) */}
+      {showSplash && (
+        <Animated.View style={[StyleSheet.absoluteFill, styles.splashOverlay, { opacity: splashOpacity }]}>
+          <LinearGradient
+            colors={['#5A0010', '#8D061A', '#C62E3B']}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={styles.splashContent}>
+            <Ionicons name="car-sport" size={60} color="#FFFFFF" style={{ marginBottom: 16 }} />
+            <Text style={styles.splashBrand}>AutoMind AI</Text>
+            <Text style={styles.splashSubText}>The Intelligence for your engine</Text>
+          </View>
+
+          <Animated.View style={[{ position: 'absolute', bottom: '30%', width: '100%'}, { transform: [{ translateX: splashCarTranslateX }] }]}>
+            <Image 
+              source={require('../../assets/images/car_side.png')} 
+              style={{ width: width * 1.2, height: 260, alignSelf: 'center', shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 20 }} 
+              contentFit="contain" 
+            />
           </Animated.View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </Animated.View>
+      )}
+
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
   safeArea: {
     flex: 1,
-    backgroundColor: '#F9FAFB', // Light modern background
-    paddingTop: Platform.OS === 'android' ? 40 : 10,
   },
   keyboardView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    alignItems: 'center',
-    paddingVertical: 30,
-    paddingHorizontal: 20,
+    paddingBottom: 40,
   },
-  viewContainer: {
+  contentPadderLogin: {
     width: '100%',
-  },
-  
-  // Login Branding
-  topBrandingLogin: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  logoCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
+    paddingTop: '30%',
   },
-  logoEmoji: {
+  contentPadder: {
+    width: '100%',
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    alignItems: 'center',
+  },
+
+  // Headers
+  topHeaderFlex: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 30,
+    marginTop: Platform.OS === 'android' ? 20 : 0
+  },
+  topHeaderTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+
+  // Splash
+  splashOverlay: {
+    zIndex: 999,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    paddingTop: width * 0.4,
+  },
+  splashContent: {
+    alignItems: 'center',
+  },
+  splashBrand: {
     fontSize: 28,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
-  brandTitle: {
+  splashSubText: {
+    fontSize: 14,
+    color: '#FEF2F2',
+    marginTop: 4,
+    fontWeight: '500',
+    letterSpacing: 1
+  },
+
+  // Branding
+  brandingCenter: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  titleText: {
     fontSize: 24,
     fontWeight: '800',
     color: '#111827',
+    marginTop: 12,
   },
-  brandSubtitle: {
+  subtitleText: {
     fontSize: 14,
     color: '#6B7280',
-    fontWeight: '500',
     marginTop: 4,
   },
 
-  // Cards
-  card: {
+  // Login Card Specific
+  loginCard: {
     width: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 24,
     shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 3,
+  },
+
+  // Generic Cards
+  card: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.04,
     shadowRadius: 10,
     elevation: 2,
-    marginBottom: 16,
+    marginBottom: 20,
   },
-  cardHeader: {
+  cardSectionTitleCenter: {
     fontSize: 18,
     fontWeight: '700',
     color: '#111827',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  cardSectionTitleCenterDanger: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#EF4444',
     marginBottom: 24,
     textAlign: 'center',
   },
+  warningTitleCenter: {
+    fontSize: 40,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
 
-  // Input Forms
+  // Inputs
   inputGroup: {
     marginBottom: 20,
+    width: '100%',
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#111827',
     marginBottom: 8,
-    marginLeft: 2,
   },
   input: {
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    fontSize: 16,
+    fontSize: 15,
     color: '#111827',
   },
 
-  // Buttons
-  primaryButton: {
+  // Buttons (Audi Red)
+  actionButtonsContainer: {
     width: '100%',
-    backgroundColor: '#2563EB', // Blue primary
+    gap: 12,
+  },
+  primaryButton: {
+    backgroundColor: '#C8001F', // Red
+    width: '100%',
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
   },
+  rowCentered: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   buttonDisabled: {
-    backgroundColor: '#93C5FD',
+    opacity: 0.6,
   },
   primaryButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   secondaryButton: {
-    width: '100%',
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    width: '100%',
     paddingVertical: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#C8001F',
   },
   secondaryButtonText: {
-    color: '#4B5563',
+    color: '#C8001F',
     fontSize: 16,
-    fontWeight: '600',
-  },
-  decisionStack: {
-    gap: 12,
-    marginTop: 8,
+    fontWeight: '700',
   },
 
-  // Typography
-  sectionHeaderTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#111827',
-    marginBottom: 16,
+  // Loading
+  loaderContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: '50%',
   },
-  subSectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+  loaderText: {
+    marginTop: 16,
+    fontSize: 15,
+    fontWeight: '600',
     color: '#111827',
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-    marginTop: 18,
-    marginBottom: 14,
   },
 
   // Dashboard
   dashboardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignSelf: 'flex-start',
+    marginBottom: 20,
   },
   dashboardGreeting: {
-    fontSize: 15,
-    color: '#6B7280',
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  dashboardVehicle: {
+    fontSize: 16,
+    color: '#FEF2F2',
+    marginTop: 4,
     fontWeight: '500',
   },
-  vehicleModel: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#111827',
-    marginTop: 4,
-  },
-  dashboardBadge: {
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#374151',
-  },
 
-  // Grid Stats
-  gridContainer: {
+  // Dashboard Stats Grid
+  healthStatsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
+    marginBottom: 24,
   },
-  gridCard: {
+  healthCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     flex: 1,
     marginHorizontal: 4,
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
-    alignItems: 'center',
   },
-  gridIcon: {
-    fontSize: 22,
-    marginBottom: 8,
+  iconSpaced: {
+    marginBottom: 10,
   },
-  gridLabel: {
+  healthCardLabel: {
     fontSize: 12,
     color: '#6B7280',
-    marginBottom: 8,
-    textAlign: 'center',
     fontWeight: '500',
+    marginBottom: 6,
+    textAlign: 'center',
   },
-  gridValue: {
+  healthCardValueNormal: {
     fontSize: 16,
     fontWeight: '700',
     color: '#111827',
   },
-  gridValueCaution: {
+  healthCardValueRed: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#EF4444', 
+    color: '#C8001F',
   },
 
-  // Alert
+  // Alert Card
   alertCardBg: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FCA5A5',
+    backgroundColor: '#FFF1F2', 
+    borderColor: '#FECDD3',
     borderWidth: 1,
   },
-  alertHeader: {
+  alertHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
   },
-  alertIcon: {
-    fontSize: 24,
-    marginRight: 10,
+  alertIconEmoji: {
+    fontSize: 20,
+    marginRight: 8,
   },
   alertTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
-    color: '#DC2626',
+    color: '#BE123C',
   },
   alertUrgencyText: {
-    fontSize: 15,
-    color: '#B91C1C',
-    fontWeight: '600',
+    fontSize: 14,
+    color: '#E11D48',
+    fontWeight: '500',
     marginBottom: 20,
   },
-  alertButton: {
-    backgroundColor: '#DC2626',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  alertButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
 
-  // Loading
-  loaderContainer: {
-    marginTop: 100,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loaderText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#4B5563',
-    fontWeight: '500',
-  },
-
-  // Report Display
-  reportRow: {
+  // Diagnosis Details
+  dataRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  reportLabel: {
+  dataLabel: {
     fontSize: 15,
     color: '#6B7280',
     fontWeight: '500',
   },
-  reportValueEmphasis: {
+  dataValueBold: {
     fontSize: 15,
     fontWeight: '700',
     color: '#111827',
   },
-  reportValueEmphasisSuccess: {
-    fontSize: 16,
+  dataValueGreen: {
+    fontSize: 15,
     fontWeight: '800',
     color: '#10B981',
   },
-  reportValue: {
+  dataValueDanger: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#111827',
+    fontWeight: '800',
+    color: '#C8001F',
   },
-  dividerSubtle: {
+  divider: {
     height: 1,
     backgroundColor: '#F3F4F6',
     marginVertical: 14,
   },
 
-  // Risk Score & Bar
-  riskScoreBadge: {
-    backgroundColor: '#FEF3C7',
+  // Risk
+  riskBadge: {
+    backgroundColor: '#FEF3C7', 
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
@@ -723,208 +834,117 @@ const styles = StyleSheet.create({
   },
   progressBarWrapper: {
     width: '100%',
-    height: 8,
-    backgroundColor: '#FEF3C7', // Base track
-    borderRadius: 4,
-    marginTop: 12,
-    overflow: 'hidden',
+    height: 6,
+    backgroundColor: '#FDE68A',
+    borderRadius: 3,
+    marginTop: 16,
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#F59E0B', // Fill color
-    borderRadius: 4,
+    backgroundColor: '#F59E0B',
+    borderRadius: 3,
   },
 
-  // AI Assistant Inside Card
-  aiAssistantCard: {
-    backgroundColor: '#EFF6FF', // Soft AI blue
-    borderRadius: 16,
+  // AI Assistant Card
+  aiCard: {
+    backgroundColor: '#FFF1F2',
+    borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    marginBottom: 24,
+    width: '100%',
+    borderColor: '#FFE4E6',
     borderWidth: 1,
-    borderColor: '#DBEAFE',
-    marginBottom: 16,
   },
-  aiAssistantIcon: {
-    fontSize: 24,
-    marginRight: 12,
-    marginTop: 2,
-  },
-  aiAssistantContent: {
-    flex: 1,
-  },
-  aiAssistantLabel: {
+  aiCardText: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#1D4ED8',
-    marginBottom: 4,
-  },
-  aiAssistantText: {
-    fontSize: 14,
-    color: '#1E3A8A',
-    lineHeight: 20,
+    color: '#9F1239',
+    lineHeight: 22,
     fontWeight: '500',
   },
+  aiCardBold: {
+    fontWeight: '700',
+  },
 
-  // Garages
-  garageCard: {
-    paddingVertical: 20,
+  // Garage Cards
+  garageRowLayout: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 18,
     marginBottom: 12,
   },
-  recommendedCardStyle: {
+  recommendedGarageCard: {
+    borderColor: '#C8001F',
     borderWidth: 2,
-    borderColor: '#2563EB', // Blue outline
     position: 'relative',
-    paddingTop: 28,
   },
   selectedGarageCard: {
     backgroundColor: '#F8FAFC',
   },
-  recommendedBadgeTag: {
+  recommendedBadge: {
     position: 'absolute',
     top: -12,
-    left: 16,
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    left: 20,
+    backgroundColor: '#C8001F',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  recommendedBadgeTagText: {
+  recommendedBadgeText: {
     color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '700',
   },
-  garageHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
   garageName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: '#111827',
-  },
-  garagePrice: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#111827',
+    marginBottom: 4,
   },
   garageRating: {
     fontSize: 13,
     color: '#6B7280',
     fontWeight: '500',
   },
-
-  // Warning (Reject)
-  warningCardBg: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FCA5A5',
-    borderWidth: 1,
-    paddingTop: 30,
-  },
-  warningHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  warningTitleIcon: {
-    fontSize: 22,
-    marginRight: 8,
-  },
-  warningTitle: {
-    fontSize: 20,
+  garagePrice: {
+    fontSize: 18,
     fontWeight: '800',
-    color: '#DC2626',
+    color: '#C8001F',
   },
-  warningText: {
-    fontSize: 15,
-    color: '#111827',
-    lineHeight: 24,
+
+  // Reject Flow Cost Box
+  costBox: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    width: '100%',
     marginBottom: 20,
   },
-  costBox: {
-    backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    marginBottom: 16,
-  },
-  costRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  costLabel: {
-    fontSize: 15,
-    color: '#4B5563',
-    fontWeight: '500',
-  },
-  costValueGood: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#10B981', // green
-  },
-  costValueBad: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#DC2626', // red
-  },
-  aiInsightBox: {
-    flexDirection: 'row',
-    backgroundColor: '#ECFEFF',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-  },
-  aiInsightIcon: {
-    marginRight: 8,
-  },
-  aiInsightText: {
-    flex: 1,
-    fontSize: 13,
-    color: '#0891B2',
+  textCautionCenter: {
+    fontSize: 14,
+    color: '#6B7280',
     fontWeight: '600',
-    lineHeight: 20,
-  },
-  persuasionText: {
-    fontSize: 15,
-    color: '#DC2626',
-    fontWeight: '600',
+    textAlign: 'center',
   },
 
-  // Accept / Success
-  successCardStyle: {
-    borderWidth: 1,
-    borderColor: '#D1FAE5',
-    paddingTop: 32,
-  },
-  successHeader: {
+  // Success
+  successHeaderCentered: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 10,
   },
-  successIconBg: {
-    backgroundColor: '#10B981',
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  successCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#D1FAE5',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
-    shadowColor: '#10B981',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  successIcon: {
-    fontSize: 32,
-    color: '#FFFFFF', // native emoji is colored but this ensures standard contrast
   },
   successTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#10B981',
+    color: '#059669',
   },
 });
