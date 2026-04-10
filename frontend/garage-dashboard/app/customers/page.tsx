@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { Customer, WorkOrder } from '@/types';
-import { mockCustomers, mockWorkOrders } from '@/lib/mockData';
 import { generateId, formatCSV, downloadCSV } from '@/lib/utils';
-import { Plus, Download, Eye, X } from 'lucide-react';
+import { Download, Eye, X } from 'lucide-react';
+import { getVehicles, getGarageBookings } from '@/lib/api';
 
 interface CustomerFormData {
   name: string;
@@ -15,11 +14,8 @@ interface CustomerFormData {
 }
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useLocalStorage<Customer[]>(
-    'customers',
-    mockCustomers
-  );
-  const [workOrders] = useLocalStorage<WorkOrder[]>('workOrders', mockWorkOrders);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState<string | null>(null);
@@ -37,6 +33,55 @@ export default function CustomersPage() {
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  // Load vehicle owners from backend as customers, and bookings as work-order history
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [vehicles, bookings] = await Promise.all([
+          getVehicles(),
+          getGarageBookings(),
+        ]);
+
+        const visitCount: Record<string, number> = {};
+        for (const b of bookings) {
+          visitCount[b.vehicle_id] = (visitCount[b.vehicle_id] ?? 0) + 1;
+        }
+
+        const mapped: Customer[] = vehicles.map((v) => ({
+          id: v.id,
+          name: v.owner,
+          phone: v.phone,
+          email: `${v.owner.toLowerCase().replace(/\s+/g, '.')}@customer.local`,
+          carModels: [v.model],
+          totalVisits: visitCount[v.id] ?? 0,
+          createdAt: new Date().toISOString(),
+        }));
+        setCustomers(mapped);
+
+        const statusMap: Record<string, WorkOrder['status']> = {
+          CONFIRMED:   'Pending',
+          IN_PROGRESS: 'In Progress',
+          COMPLETED:   'Completed',
+        };
+        const mappedOrders: WorkOrder[] = bookings
+          .filter((b) => b.status !== 'CANCELLED')
+          .map((b, i) => ({
+            id: b.id,
+            orderId: `WO-${String(i + 1).padStart(3, '0')}`,
+            customerName: b.owner,
+            carModel: b.model,
+            serviceType: b.service,
+            status: statusMap[b.status] ?? 'Pending',
+            scheduledDate: b.created_at.split('T')[0],
+          }));
+        setWorkOrders(mappedOrders);
+      } catch {
+        // Backend not reachable — keep defaults
+      }
+    };
+    load();
+  }, []);
 
   const showToast = (message: string, type: string = 'success') => {
     setToast({ message, type });
@@ -121,13 +166,7 @@ export default function CustomersPage() {
             <Download size={20} />
             Export CSV
           </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-          >
-            <Plus size={20} />
-            Add New Customer
-          </button>
+
         </div>
       </div>
 

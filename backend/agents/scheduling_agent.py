@@ -1,20 +1,14 @@
 """
-SchedulingAgent — Sends service request to garages in ranked order.
-                   Simulates garage accept/reject with timeout. Chains to next garage on rejection.
+SchedulingAgent — Sends service request to the best matching garage.
+                   The real garage dashboard accepts/rejects via the UI.
+                   Falls back to next garage if the first one's booking is cancelled.
 """
 import asyncio
-import random
 
 from models.models import ACTIVE_PIPELINES, SERVICE_DETAILS
 
-GARAGE_ACCEPT_PROB = 0.70
-GARAGE_RESPONSE_DELAY = 1.5
-
 
 class SchedulingAgent:
-    def _simulate_garage_decision(self) -> bool:
-        return random.random() < GARAGE_ACCEPT_PROB
-
     async def try_garage_chain(self, vehicle, request, garages: list, index: int):
         from agents.feedback_agent import FeedbackAgent
         feedback_agent = FeedbackAgent()
@@ -30,18 +24,10 @@ class SchedulingAgent:
         request.garages_tried.append(garage.id)
         svc = SERVICE_DETAILS.get(request.ml_result.prediction, {})
 
-        print(f"[GARAGE] Request {request.id} sent to garage #{index + 1}: {garage.name}")
+        print(f"[GARAGE] Sending request {request.id} to garage: {garage.name} ({garage.id})")
         print(f"         Service : {svc.get('service')} | Cost: {svc.get('estimated_cost')}")
-        print(f"         Issue   : {request.ml_result.prediction} | Confidence: {request.ml_result.confidence * 100:.1f}%")
-        print(f"         Urgency : {request.urgency} | Timeout: {GARAGE_RESPONSE_DELAY}s (simulated)")
+        print(f"         Issue   : {request.ml_result.prediction} | Urgency: {request.urgency}")
 
-        await asyncio.sleep(GARAGE_RESPONSE_DELAY)
-        accepted = self._simulate_garage_decision()
-
-        if accepted:
-            print(f"[GARAGE] {garage.name} ACCEPTED request {request.id}")
-            request.status = "GARAGE_ACCEPTED"
-            await feedback_agent.notify_user(vehicle, garage, request)
-        else:
-            print(f"[GARAGE] {garage.name} REJECTED request {request.id} — trying next garage")
-            await self.try_garage_chain(vehicle, request, garages, index + 1)
+        # Hand off to feedback_agent — garage accepts/declines via the dashboard UI
+        # Pass the full garages list + current index so feedback_agent can chain to next on reject
+        await feedback_agent.notify_user(vehicle, garage, request, garages, index)

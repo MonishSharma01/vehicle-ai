@@ -1,48 +1,93 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useState, useEffect, useCallback } from 'react';
 import StatsCard from '@/components/StatsCard';
 import NewBookingAlert from '@/components/NewBookingAlert';
 import LiveServiceTrackingItem from '@/components/LiveServiceTrackingItem';
-import SetChargesModal from '@/components/SetChargesModal';
 import {
   TrendingUp,
   CheckCircle2,
   DollarSign,
   Star,
-  MessageSquare,
-  X,
 } from 'lucide-react';
-import {
-  mockNewBooking,
-  mockLiveJobs,
-  defaultChargesConfig,
-  defaultDashboardStats,
-} from '@/lib/mockData';
-import { DashboardStats, LiveJob, NewBooking, ChargesConfig } from '@/types';
+import { DashboardStats, LiveJob, NewBooking } from '@/types';
 import { formatCurrency } from '@/lib/utils';
+import {
+  getGarageStats,
+  getGarageBookings,
+  getPendingBooking,
+  startBooking,
+  completeBooking,
+  cancelBooking,
+} from '@/lib/api';
 
 export default function Dashboard() {
-  const [stats, setStats] = useLocalStorage<DashboardStats>(
-    'dashboardStats',
-    defaultDashboardStats
-  );
-  const [liveJobs, setLiveJobs] = useLocalStorage<LiveJob[]>(
-    'liveJobs',
-    mockLiveJobs
-  );
-  const [newBooking, setNewBooking] = useLocalStorage<NewBooking | null>(
-    'newBooking',
-    mockNewBooking
-  );
-  const [chargesConfig, setChargesConfig] = useLocalStorage<ChargesConfig>(
-    'chargesConfig',
-    defaultChargesConfig
-  );
-  const [showChargesModal, setShowChargesModal] = useState(false);
-  const [showInsight, setShowInsight] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    todaysBookings: 0,
+    completed: 0,
+    revenue: 0,
+    rating: 0,
+  });
+  const [liveJobs, setLiveJobs] = useState<LiveJob[]>([]);
+  const [newBooking, setNewBooking] = useState<NewBooking | null>(null);
+  const [showInsight] = useState(true);
   const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [apiStats, apiBookings, apiPending] = await Promise.all([
+        getGarageStats(),
+        getGarageBookings(),
+        getPendingBooking(),
+      ]);
+
+      setStats({
+        todaysBookings: apiStats.todays_bookings,
+        completed: apiStats.completed,
+        revenue: apiStats.revenue,
+        rating: apiStats.rating,
+      });
+
+      const jobs: LiveJob[] = apiBookings
+        .filter((b) => b.status === 'IN_PROGRESS')
+        .map((b) => ({
+          id: b.id,
+          carId: b.model,
+          serviceType: b.service,
+          status: 'IN_PROGRESS',
+          timeLeft: 1200,
+          serviceCost: b.cost_inr,
+        }));
+      setLiveJobs(jobs);
+
+      if (apiPending) {
+        setNewBooking({
+          id: apiPending.id,
+          issueId: apiPending.vehicle_id,
+          carModel: apiPending.model,
+          owner: apiPending.owner_name,
+          problem: apiPending.issue.replace(/_/g, ' ').toUpperCase(),
+          scheduledTime:
+            'Today, ' +
+            new Date(apiPending.created_at).toLocaleTimeString('en-IN', {
+              hour: '2-digit',
+              minute: '2-digit',
+            }),
+          actionLabel: apiPending.action_label,
+        });
+      } else {
+        setNewBooking(null);
+      }
+    } catch {
+      // Backend not reachable — keep current state
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   useEffect(() => {
     if (toast) {
@@ -55,55 +100,28 @@ export default function Dashboard() {
     setToast({ message, type });
   };
 
-  const handleAcceptBooking = () => {
+  const handleAcceptBooking = async () => {
     if (!newBooking) return;
-
-    // Add to live jobs
-    const newJob: LiveJob = {
-      id: newBooking.id,
-      carId: 'CAR-' + Date.now(),
-      serviceType: newBooking.problem,
-      status: 'IN_PROGRESS',
-      timeLeft: 1200, // 20 minutes
-      serviceCost: 800,
-    };
-
-    setLiveJobs([...(liveJobs || []), newJob]);
-    setStats((prev) => ({
-      ...prev,
-      todaysBookings: prev.todaysBookings + 1,
-    }));
-
-    setNewBooking(null);
+    await startBooking(newBooking.id);
     showToast('Booking accepted! Added to live tracking');
+    fetchData();
   };
 
-  const handleRejectBooking = () => {
-    setNewBooking(null);
+  const handleRejectBooking = async () => {
+    if (!newBooking) return;
+    await cancelBooking(newBooking.id);
     showToast('Booking rejected', 'info');
+    fetchData();
   };
 
-  const handleMarkCompleted = (jobId: string) => {
-    const job = (liveJobs || []).find((j) => j.id === jobId);
-    if (!job) return;
-
-    setLiveJobs((liveJobs || []).filter((j) => j.id !== jobId));
-    setStats((prev) => ({
-      ...prev,
-      completed: prev.completed + 1,
-      revenue: prev.revenue + job.serviceCost,
-    }));
-
+  const handleMarkCompleted = async (jobId: string) => {
+    await completeBooking(jobId);
     showToast('Service marked as completed!');
+    fetchData();
   };
 
   const handleSubmission = (jobId: string) => {
     showToast('Order submitted successfully!', 'info');
-  };
-
-  const handleSaveCharges = (charges: ChargesConfig) => {
-    setChargesConfig(charges);
-    showToast('Service charges updated!');
   };
 
   return (
@@ -144,19 +162,11 @@ export default function Dashboard() {
 
       {/* Insights Banner */}
       {showInsight && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start justify-between">
-          <div>
-            <h3 className="font-semibold text-blue-900">💡 Insight</h3>
-            <p className="text-blue-800 text-sm mt-1">
-              80% of your bookings are BATTERY issues → Stock more batteries!
-            </p>
-          </div>
-          <button
-            onClick={() => setShowInsight(false)}
-            className="text-blue-600 hover:text-blue-800 p-1"
-          >
-            <X size={20} />
-          </button>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <h3 className="font-semibold text-blue-900">💡 Insight</h3>
+          <p className="text-blue-800 text-sm mt-1">
+            80% of your bookings are BATTERY issues → Stock more batteries!
+          </p>
         </div>
       )}
 
@@ -166,7 +176,7 @@ export default function Dashboard() {
           Live Service Tracking
         </h2>
 
-        {!liveJobs || liveJobs.length === 0 ? (
+        {liveJobs.length === 0 ? (
           <p className="text-gray-500 text-center py-8">No active jobs at the moment</p>
         ) : (
           <div className="space-y-3">
@@ -182,23 +192,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Set My Charges Button */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => setShowChargesModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-        >
-          Set My Charges
-        </button>
-      </div>
 
-      {/* Set Charges Modal */}
-      <SetChargesModal
-        isOpen={showChargesModal}
-        onClose={() => setShowChargesModal(false)}
-        onSave={handleSaveCharges}
-        initialCharges={chargesConfig}
-      />
 
       {/* Toast Notification */}
       {toast && (

@@ -1,11 +1,11 @@
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Doughnut } from 'react-chartjs-2';
-import { useAppContext, failureData } from '../store/data';
+import { useAppContext } from '../store/data';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 export const Analytics = () => {
-  const { anomalies } = useAppContext();
+  const { anomalies, failureData } = useAppContext();
 
   const chartData = {
     labels: failureData.map(d => d.label),

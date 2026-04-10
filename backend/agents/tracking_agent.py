@@ -37,10 +37,19 @@ class TrackingAgent:
 
     async def monitor_loop(self):
         from agents.decision_agent import DecisionAgent
+        import models.models as _m
         decision_agent = DecisionAgent()
 
         print("[MONITOR] Continuous monitoring started. Interval: every 5 seconds.")
         while True:
+            # ── Check if any agent flagged a demo restart ──────────────────
+            if _m.PENDING_DEMO_RESTART:
+                _m.PENDING_DEMO_RESTART = False
+                await asyncio.sleep(5)
+                from main import _schedule_next_demo
+                _schedule_next_demo(delay=0.1)
+                print("[DEMO] Consumed PENDING_DEMO_RESTART — next cycle triggered.")
+
             vehicles = [v for v in DB["vehicles"].values() if v.active]
             print(f"[MONITOR] Checking {len(vehicles)} vehicle(s)")
 

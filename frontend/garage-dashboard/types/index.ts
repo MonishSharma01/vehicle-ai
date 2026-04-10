@@ -44,6 +44,7 @@ export interface NewBooking {
   owner: string;
   problem: string;
   scheduledTime: string;
+  actionLabel?: string;
 }
 
 export interface ChargesConfig {

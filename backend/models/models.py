@@ -4,7 +4,7 @@ models.py — Data models and in-memory database.
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 
 class Urgency(str, Enum):
@@ -82,6 +82,8 @@ class ServiceRequest:
     status: str
     created_at: datetime
     garages_tried: List[str] = field(default_factory=list)
+    offered_garage_id: Optional[str] = None
+    booking_id: Optional[str] = None
 
 
 @dataclass
@@ -108,6 +110,19 @@ DB: Dict[str, Any] = {
 
 # Vehicles currently being processed — prevents duplicate pipelines
 ACTIVE_PIPELINES: set = set()
+
+# Garage decision gate: booking_id → asyncio.Event (set when garage accepts)
+PENDING_GARAGE_DECISIONS: Dict = {}
+# True = accepted, False = declined
+GARAGE_DECISIONS: Dict[str, bool] = {}
+
+# User decision gate: request_id → asyncio.Event (set when user responds)
+PENDING_USER_DECISIONS: Dict = {}
+# True = accepted, False = declined
+USER_DECISIONS: Dict[str, bool] = {}
+
+# Demo restart flag — set by agents, consumed by main.py's monitor loop
+PENDING_DEMO_RESTART: bool = False
 
 
 # ── Seed data ────────────────────────────────────────────────────────────────

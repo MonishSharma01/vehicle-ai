@@ -174,42 +174,7 @@ export default function ServicesPage() {
         </table>
       </div>
 
-      {/* Quick Add Section */}
-      <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <Plus size={20} className="text-blue-600" />
-          Quick Add Service
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <input
-            type="text"
-            placeholder="Service Name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
-          />
-          <input
-            type="number"
-            placeholder="Price (₹)"
-            value={formData.price || ''}
-            onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
-            className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
-          />
-          <input
-            type="number"
-            placeholder="Est. Time (min)"
-            value={formData.estimatedTime || ''}
-            onChange={(e) => setFormData({ ...formData, estimatedTime: Number(e.target.value) })}
-            className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
-          />
-          <button
-            onClick={handleAddService}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors"
-          >
-            Add Service
-          </button>
-        </div>
-      </div>
+
 
       {/* Add/Edit Modal */}
       {showAddModal && (

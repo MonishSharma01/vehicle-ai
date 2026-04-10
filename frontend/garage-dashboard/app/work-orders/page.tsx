@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { WorkOrder, Service } from '@/types';
-import { mockWorkOrders, mockServices } from '@/lib/mockData';
-import { generateId, formatDate } from '@/lib/utils';
-import { Plus, Eye, X } from 'lucide-react';
+import { mockServices } from '@/lib/mockData';
+import { generateId } from '@/lib/utils';
+import { Eye, X } from 'lucide-react';
+import { getGarageBookings } from '@/lib/api';
 
 interface WorkOrderFormData {
   customerName: string;
@@ -16,10 +17,7 @@ interface WorkOrderFormData {
 }
 
 export default function WorkOrdersPage() {
-  const [workOrders, setWorkOrders] = useLocalStorage<WorkOrder[]>(
-    'workOrders',
-    mockWorkOrders
-  );
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [services] = useLocalStorage<Service[]>('services', mockServices);
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,6 +39,39 @@ export default function WorkOrdersPage() {
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  // Load bookings from backend and map to WorkOrder shape
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const bookings = await getGarageBookings();
+        const statusMap: Record<string, WorkOrder['status']> = {
+          PENDING_GARAGE:  'Pending',
+          AWAITING_USER:   'Pending',
+          CONFIRMED:       'Pending',
+          IN_PROGRESS:     'In Progress',
+          COMPLETED:       'Completed',
+        };
+        const mapped: WorkOrder[] = bookings
+          .filter((b) => b.status !== 'CANCELLED')
+          .map((b, i) => ({
+            id: b.id,
+            orderId: `WO-${String(i + 1).padStart(3, '0')}`,
+            customerName: b.owner,
+            carModel: b.model,
+            serviceType: b.status === 'AWAITING_USER' ? `${b.service} ⏳ awaiting user` : b.status === 'PENDING_GARAGE' ? `${b.service} 🔔 new request` : b.service,
+            status: statusMap[b.status] ?? 'Pending',
+            scheduledDate: b.created_at.split('T')[0],
+          }));
+        setWorkOrders(mapped);
+      } catch {
+        // Backend not reachable — table stays empty until connection is available
+      }
+    };
+    load();
+    const interval = setInterval(load, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const showToast = (message: string, type: string = 'success') => {
     setToast({ message, type });
@@ -102,14 +133,6 @@ export default function WorkOrdersPage() {
     setShowAddModal(false);
   };
 
-  const handleUpdateStatus = (id: string, newStatus: WorkOrder['status']) => {
-    setWorkOrders(
-      workOrders.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
-    );
-    showToast(`Status updated to ${newStatus}`);
-    setShowDetailsModal(null);
-  };
-
   const getStatusBadge = (status: string) => {
     const styles = {
       Pending: 'bg-yellow-50 text-yellow-700',
@@ -134,13 +157,7 @@ export default function WorkOrdersPage() {
           <h1 className="text-3xl font-bold text-gray-900">Work Orders</h1>
           <p className="text-gray-600 mt-1">Track and manage all customer jobs</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
-        >
-          <Plus size={20} />
-          New Work Order
-        </button>
+
       </div>
 
       {/* Summary Cards */}
@@ -384,25 +401,7 @@ export default function WorkOrdersPage() {
                 <p className="font-semibold text-gray-900">{detailedOrder.scheduledDate}</p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Update Status
-                </label>
-                <select
-                  value={detailedOrder.status}
-                  onChange={(e) =>
-                    handleUpdateStatus(
-                      detailedOrder.id,
-                      e.target.value as WorkOrder['status']
-                    )
-                  }
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
-                >
-                  <option value="Pending">Pending</option>
-                  <option value="In Progress">In Progress</option>
-                  <option value="Completed">Completed</option>
-                </select>
-              </div>
+
             </div>
 
             <div className="flex gap-3 p-6 border-t border-gray-200 justify-end">

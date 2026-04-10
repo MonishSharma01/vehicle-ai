@@ -37,7 +37,6 @@ def train(df):
     X = df[FEATURE_COLS].values
     y = df[LABEL_COL].values
 
-    # Encode string labels → integers (needed for probability output)
     le = LabelEncoder()
     y_enc = le.fit_transform(y)
 
@@ -49,9 +48,10 @@ def train(df):
     print(f"Classes: {list(le.classes_)}")
 
     model = RandomForestClassifier(
-        n_estimators=150,
-        max_depth=10,
-        min_samples_split=5,
+        n_estimators=200,      # more trees for noisy data
+        max_depth=12,          # slightly deeper to capture noise patterns
+        min_samples_split=8,   # higher = less overfitting on noise
+        min_samples_leaf=4,    # prevents memorising noisy boundary samples
         random_state=RANDOM_SEED,
         n_jobs=-1,
     )

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../store/data';
+import { api } from '../lib/api';
 
 export const Dashboard = () => {
   const { vehicles, anomalies, accuracy, setAccuracy, addToast } = useAppContext();
@@ -12,6 +13,10 @@ export const Dashboard = () => {
   const [alertOpen, setAlertOpen] = useState(false);
   const [alertText, setAlertText] = useState('');
   const [alertSeverity, setAlertSeverity] = useState('info');
+  const [simVehicle, setSimVehicle] = useState('V001');
+  const [simIssue, setSimIssue] = useState('battery_failure');
+  const [simulating, setSimulating] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
 
   const [logs, setLogs] = useState([
@@ -68,6 +73,32 @@ export const Dashboard = () => {
     addToast('Global Alert successfully broadcast to entire fleet network!', 'success');
     pushLog('info', `[INFO]    ${new Date().toLocaleTimeString()} - GLOBAL BROADCAST [${alertSeverity.toUpperCase()}]: "${alertText.substring(0, 30)}..."`);
     setAlertText('');
+  };
+
+  const handleForceIssue = async () => {
+    setSimulating(true);
+    try {
+      await api.forceIssue(simVehicle, simIssue);
+      addToast(`Force issue '${simIssue}' queued for ${simVehicle} on the next telemetry cycle.`, 'success');
+      pushLog('info', `[INFO]    ${new Date().toLocaleTimeString()} - FORCE ISSUE: ${simVehicle} → ${simIssue}`);
+    } catch {
+      addToast('Could not reach backend. Is the server running?', 'error');
+    } finally {
+      setSimulating(false);
+    }
+  };
+
+  const handleResetSystem = async () => {
+    setResetting(true);
+    try {
+      await api.reset();
+      addToast('System reset complete. All data cleared and re-seeded.', 'success');
+      pushLog('info', `[INFO]    ${new Date().toLocaleTimeString()} - DB RESET: vehicles and garages re-seeded.`);
+    } catch {
+      addToast('Could not reach backend. Is the server running?', 'error');
+    } finally {
+      setResetting(false);
+    }
   };
 
   const logClass = (type: string) => {
@@ -208,6 +239,46 @@ export const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* SIMULATION CONTROLS */}
+      <section className="white-card animate-in">
+        <div className="section-header" style={{ marginBottom: '20px' }}>
+          <h2><i className="fa-solid fa-flask" style={{ color: 'var(--accent-purple)' }}></i> Simulation &amp; Testing Controls</h2>
+        </div>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <select className="filter-select" value={simVehicle} onChange={e => setSimVehicle(e.target.value)}>
+            <option value="V001">V001</option>
+            <option value="V002">V002</option>
+            <option value="V003">V003</option>
+          </select>
+          <select className="filter-select" value={simIssue} onChange={e => setSimIssue(e.target.value)}>
+            <option value="battery_failure">Battery Failure</option>
+            <option value="engine_overheat">Engine Overheat</option>
+            <option value="low_oil_life">Low Oil Life</option>
+            <option value="normal">Normal</option>
+          </select>
+          <button className="btn-quick" onClick={handleForceIssue} disabled={simulating}>
+            {simulating
+              ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Triggering...</>
+              : <><i className="fa-solid fa-bolt"></i> Force Issue</>
+            }
+          </button>
+          <button
+            className="btn-quick"
+            style={{ background: 'var(--danger)', color: '#fff', borderColor: 'var(--danger)' }}
+            onClick={handleResetSystem}
+            disabled={resetting}
+          >
+            {resetting
+              ? <><i className="fa-solid fa-circle-notch fa-spin"></i> Resetting...</>
+              : <><i className="fa-solid fa-rotate-right"></i> Reset System</>
+            }
+          </button>
+        </div>
+        <p className="modal-sub" style={{ marginTop: '12px', marginBottom: 0 }}>
+          Queue a vehicle defect for the next telemetry cycle, or wipe and re-seed the entire in-memory database.
+        </p>
+      </section>
     </>
   );
 };

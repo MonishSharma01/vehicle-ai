@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import { api, BackendVehicle, BackendGarage, BackendRequest, BackendBooking } from '../lib/api';
 
 export type Vehicle = {
   id: string;
@@ -33,29 +34,154 @@ export type FailureData = {
   color: string;
 };
 
+// Static defaults shown briefly before first backend fetch
 const defaultVehicles: Vehicle[] = [
-  { id: 'CAR-001', model: 'Tesla Model 3',   health: 72, failure: 'Battery Cell Degradation', urgency: 'Medium', action: 'Schedule Service', status: 'warning',  garageApproval: 'accepted', userApproval: 'pending'  },
-  { id: 'CAR-002', model: 'Honda City',       health: 95, failure: 'Normal / None',            urgency: 'None',   action: 'Monitor Only',    status: 'healthy',  garageApproval: 'none',     userApproval: 'none'     },
-  { id: 'CAR-003', model: 'Toyota Camry',     health: 45, failure: 'Engine Overheating',       urgency: 'High',   action: 'URGENT Service',  status: 'critical', garageApproval: 'accepted', userApproval: 'accepted' },
-  { id: 'CAR-004', model: 'Ford Mustang',     health: 88, failure: 'Routine Oil Change',       urgency: 'Low',    action: 'Schedule Service', status: 'healthy', garageApproval: 'pending',  userApproval: 'pending'  },
-  { id: 'CAR-005', model: 'BMW X5',           health: 30, failure: 'Coolant System Leak',      urgency: 'High',   action: 'URGENT Service',  status: 'critical', garageApproval: 'pending',  userApproval: 'none'     },
-  { id: 'CAR-006', model: 'Hyundai Creta',    health: 65, failure: 'Brake Pad Wear',           urgency: 'Medium', action: 'Schedule Service', status: 'warning',  garageApproval: 'declined', userApproval: 'none'     },
+  { id: 'V001', model: '—', health: 93, failure: 'Normal / None', urgency: 'None', action: 'Monitor Only', status: 'healthy', garageApproval: 'none', userApproval: 'none' },
+  { id: 'V002', model: '—', health: 93, failure: 'Normal / None', urgency: 'None', action: 'Monitor Only', status: 'healthy', garageApproval: 'none', userApproval: 'none' },
+  { id: 'V003', model: '—', health: 93, failure: 'Normal / None', urgency: 'None', action: 'Monitor Only', status: 'healthy', garageApproval: 'none', userApproval: 'none' },
 ];
 
 const defaultAnomalies: Anomaly[] = [
-  { time: '10:15 AM', vehicle: 'CAR-003', issue: 'Risk=Low but Decision=Urgent → MISMATCH',   severity: 'critical' },
-  { time: '09:30 AM', vehicle: null,      issue: 'Prediction confidence 65% (below 70% threshold)', severity: 'warning'  },
-  { time: '08:45 AM', vehicle: null,      issue: 'Pricing Agent failed to respond → RESTARTED', severity: 'info'     },
+  { time: '--:--', vehicle: null, issue: 'Connecting to backend…', severity: 'info' },
 ];
 
-const defaultGarages: Garage[] = [
-  { name: 'QuickFix Garage', bookings: 156, revenue: 140400, rating: 4.2, status: 'active'         },
-  { name: 'SpeedService',    bookings: 98,  revenue: 88200,  rating: 4.5, status: 'active'         },
-  { name: 'AutoCare Pro',    bookings: 45,  revenue: 40500,  rating: 3.9, status: 'warning-status' },
-  { name: 'City Garage',     bookings: 12,  revenue: 10800,  rating: 3.2, status: 'suspended'      },
-];
+const defaultGarages: Garage[] = [];
 
-export const failureData: FailureData[] = [
+// ── Mapping helpers ─────────────────────────────────────────────────────────
+const HEALTH_MAP: Record<string, number> = {
+  normal: 93, low_oil_life: 65, battery_failure: 45, engine_overheat: 30,
+};
+const FAILURE_LABEL: Record<string, string> = {
+  normal: 'Normal / None',
+  low_oil_life: 'Low Oil Life',
+  battery_failure: 'Battery Cell Degradation',
+  engine_overheat: 'Engine Overheating',
+};
+const ISSUE_COST: Record<string, number> = {
+  battery_failure: 4000, engine_overheat: 7500, low_oil_life: 1500, normal: 0,
+};
+
+function getHealthStatus(health: number): string {
+  if (health > 80) return 'healthy';
+  if (health >= 50) return 'warning';
+  return 'critical';
+}
+
+function getAction(urgency: string): string {
+  if (urgency === 'High') return 'URGENT Service';
+  if (urgency === 'None') return 'Monitor Only';
+  return 'Schedule Service';
+}
+
+function getGarageApproval(req: BackendRequest | undefined): string {
+  if (!req) return 'none';
+  if (req.status === 'ACCEPTED' || req.status === 'BOOKED') return 'accepted';
+  if (req.status === 'DECLINED') return 'declined';
+  if (req.status === 'PENDING') return 'pending';
+  return 'none';
+}
+
+function getUserApproval(req: BackendRequest | undefined): string {
+  if (!req) return 'none';
+  if (req.status === 'BOOKED') return 'accepted';
+  if (req.status === 'USER_DECLINED') return 'declined';
+  return 'pending';
+}
+
+function buildVehicles(bvs: BackendVehicle[], requests: BackendRequest[]): Vehicle[] {
+  return bvs.map(v => {
+    const reqs = requests
+      .filter(r => r.vehicle_id === v.id)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const req     = reqs[0];
+    const issue   = req?.issue   ?? 'normal';
+    const urgency = req?.urgency ?? 'None';
+    const health  = HEALTH_MAP[issue] ?? 90;
+    return {
+      id: v.id,
+      model: v.model,
+      health,
+      failure:        FAILURE_LABEL[issue] ?? issue,
+      urgency,
+      action:         getAction(urgency),
+      status:         getHealthStatus(health),
+      garageApproval: getGarageApproval(req),
+      userApproval:   getUserApproval(req),
+    };
+  });
+}
+
+function mergeGarages(prev: Garage[], fresh: Garage[]): Garage[] {
+  const backendNames = new Set(fresh.map(g => g.name));
+  const localOnly = prev.filter(g => !backendNames.has(g.name));
+  return [...fresh, ...localOnly];
+}
+
+function buildGarages(bgs: BackendGarage[], bookings: BackendBooking[]): Garage[] {
+  return bgs.map(g => {
+    const gbs = bookings.filter(b => b.garage_id === g.id);
+    const completed = gbs.filter(b => b.status === 'COMPLETED');
+    const revenue = completed.reduce((s, b) => s + (ISSUE_COST[b.issue] ?? 0), 0);
+    const gStatus = g.available_slots === 0 ? 'warning-status' : 'active';
+    return { name: g.name, bookings: gbs.length, revenue, rating: g.rating, status: gStatus };
+  });
+}
+
+function buildAnomalies(requests: BackendRequest[], activePipelines: string[]): Anomaly[] {
+  const items: Anomaly[] = [];
+  for (const r of requests) {
+    if (r.confidence < 70) {
+      items.push({
+        time: new Date(r.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        vehicle: r.vehicle_id,
+        issue: `Prediction confidence ${r.confidence}% — below 70% threshold`,
+        severity: 'warning',
+      });
+    }
+    if (r.status === 'DECLINED') {
+      items.push({
+        time: new Date(r.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        vehicle: r.vehicle_id,
+        issue: 'Service request declined — no available garage accepted',
+        severity: 'critical',
+      });
+    }
+  }
+  for (const vid of activePipelines) {
+    items.push({
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      vehicle: vid,
+      issue: 'Vehicle actively in AI processing pipeline',
+      severity: 'info',
+    });
+  }
+  if (items.length === 0) {
+    items.push({
+      time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      vehicle: null,
+      issue: 'All systems nominal — no anomalies detected',
+      severity: 'info',
+    });
+  }
+  return items.slice(0, 6);
+}
+
+function buildFailureData(bookings: BackendBooking[]): FailureData[] {
+  const counts = { battery_failure: 0, engine_overheat: 0, low_oil_life: 0 };
+  for (const b of bookings) {
+    if (b.issue in counts) counts[b.issue as keyof typeof counts]++;
+  }
+  const total = counts.battery_failure + counts.engine_overheat + counts.low_oil_life;
+  if (total === 0) return staticFailureData;
+  const result = [
+    { label: 'Battery Issues',  pct: Math.round((counts.battery_failure / total) * 100), color: '#4F46E5' },
+    { label: 'Engine Problems', pct: Math.round((counts.engine_overheat / total) * 100), color: '#8B5CF6' },
+    { label: 'Oil Related',     pct: Math.round((counts.low_oil_life    / total) * 100), color: '#F59E0B' },
+  ].filter(d => d.pct > 0);
+  return result.length > 0 ? result : staticFailureData;
+}
+
+export const staticFailureData: FailureData[] = [
   { label: 'Battery Issues',  pct: 45, color: '#4F46E5' },
   { label: 'Engine Problems', pct: 25, color: '#8B5CF6' },
   { label: 'Oil Related',     pct: 20, color: '#F59E0B' },
@@ -73,6 +199,7 @@ interface AppContextType {
   anomalies: Anomaly[];
   garages: Garage[];
   accuracy: number;
+  failureData: FailureData[];
   setVehicles: React.Dispatch<React.SetStateAction<Vehicle[]>>;
   setAnomalies: React.Dispatch<React.SetStateAction<Anomaly[]>>;
   setGarages: React.Dispatch<React.SetStateAction<Garage[]>>;
@@ -84,42 +211,38 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [vehicles, setVehicles] = useState<Vehicle[]>(() => {
-    try {
-      const v = localStorage.getItem('ai_admin_v');
-      return v ? (JSON.parse(v) as Vehicle[]) : defaultVehicles;
-    } catch { return defaultVehicles; }
-  });
+  const [vehicles,    setVehicles]    = useState<Vehicle[]>(defaultVehicles);
+  const [anomalies,   setAnomalies]   = useState<Anomaly[]>(defaultAnomalies);
+  const [garages,     setGarages]     = useState<Garage[]>(defaultGarages);
+  const [accuracy,    setAccuracy]    = useState<number>(91.2);
+  const [failureData, setFailureData] = useState<FailureData[]>(staticFailureData);
+  const [toasts,      setToasts]      = useState<ToastItem[]>([]);
 
-  const [anomalies, setAnomalies] = useState<Anomaly[]>(() => {
-    try {
-      const a = localStorage.getItem('ai_admin_a');
-      return a ? (JSON.parse(a) as Anomaly[]) : defaultAnomalies;
-    } catch { return defaultAnomalies; }
-  });
-
-  const [garages, setGarages] = useState<Garage[]>(() => {
-    try {
-      const g = localStorage.getItem('ai_admin_g');
-      return g ? (JSON.parse(g) as Garage[]) : defaultGarages;
-    } catch { return defaultGarages; }
-  });
-
-  const [accuracy, setAccuracy] = useState<number>(94.0);
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-
-  // Persist state to localStorage
+  // Poll backend every 5 s
   useEffect(() => {
-    localStorage.setItem('ai_admin_v', JSON.stringify(vehicles));
-  }, [vehicles]);
-
-  useEffect(() => {
-    localStorage.setItem('ai_admin_a', JSON.stringify(anomalies));
-  }, [anomalies]);
-
-  useEffect(() => {
-    localStorage.setItem('ai_admin_g', JSON.stringify(garages));
-  }, [garages]);
+    let cancelled = false;
+    const fetchAll = async () => {
+      try {
+        const [bVehicles, bGarages, bRequests, bBookings, statusData] = await Promise.all([
+          api.getVehicles(),
+          api.getGarages(),
+          api.getRequests(),
+          api.getBookings(),
+          api.getStatus(),
+        ]);
+        if (cancelled) return;
+        setVehicles(buildVehicles(bVehicles, bRequests));
+        setGarages(prev => mergeGarages(prev, buildGarages(bGarages, bBookings)));
+        setAnomalies(buildAnomalies(bRequests, statusData.active_pipelines));
+        setFailureData(buildFailureData(bBookings));
+      } catch {
+        // Backend unavailable — keep current state
+      }
+    };
+    fetchAll();
+    const interval = setInterval(fetchAll, 5000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
 
   const addToast = useCallback((message: string, type: 'success' | 'info' | 'warning' | 'error' = 'success') => {
     const id = Date.now();
@@ -129,8 +252,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     }, 3500);
   }, []);
 
+  const ctxValue = useMemo(() => ({
+    vehicles, anomalies, garages, accuracy, failureData,
+    setVehicles, setAnomalies, setGarages, setAccuracy,
+    toasts, addToast,
+  }), [vehicles, anomalies, garages, accuracy, failureData, toasts, addToast]);
+
   return (
-    <AppContext.Provider value={{ vehicles, anomalies, garages, accuracy, setVehicles, setAnomalies, setGarages, setAccuracy, toasts, addToast }}>
+    <AppContext.Provider value={ctxValue}>
       {children}
     </AppContext.Provider>
   );

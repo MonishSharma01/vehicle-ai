@@ -26,7 +26,7 @@ export default function NewBookingAlert({ booking, onAccept, onReject }: NewBook
         {/* Booking Details */}
         <div className="space-y-3">
           <div className="inline-block bg-red-100 text-red-600 px-3 py-1 rounded-full text-sm font-bold">
-            NEW BOOKING JUST ARRIVED
+            {booking.actionLabel === 'START SERVICE' ? '🔧 USER CONFIRMED — START SERVICE' : 'NEW BOOKING JUST ARRIVED'}
           </div>
           <p className="text-sm text-gray-600">Issue ID: {booking.issueId}</p>
           <p className="text-lg font-semibold text-gray-900">{booking.carModel}</p>
