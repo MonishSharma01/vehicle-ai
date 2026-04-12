@@ -25,6 +25,26 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days — persistent login
 _users_db: dict = {}    # email/phone → user record
 _garages_db: dict = {}  # phone → garage record
 
+# ── Pre-seeded demo garage (always available, survives restarts) ──────────────
+def _seed_demo_accounts():
+    import bcrypt as _bcrypt
+    _DEMO_GARAGES = [
+        ("9999900001", "AutoCare Downtown", "Raj Kumar",   "123 Main St, Delhi",   "battery,engine,oil", "demo1234", "G001"),
+        ("9999900002", "QuickFix Motors",   "Priya Singh", "45 Ring Road, Mumbai", "battery,oil",        "demo1234", "G002"),
+        ("9999900003", "SpeedGarage Pro",   "Amit Verma",  "7 Industrial Rd, Pune","engine,general",     "demo1234", "G003"),
+    ]
+    for phone, gname, owner, loc, spec, pwd, gid in _DEMO_GARAGES:
+        if phone not in _garages_db:
+            _garages_db[phone] = {
+                "id": gid, "garage_name": gname, "owner_name": owner,
+                "phone": phone, "email": "", "location": loc,
+                "specialization": spec, "rating": 4.8,
+                "password_hash": _bcrypt.hashpw(pwd.encode(), _bcrypt.gensalt()).decode(),
+                "created_at": "2026-01-01T00:00:00+00:00",
+            }
+
+_seed_demo_accounts()
+
 # ── Demo vehicle assignment ───────────────────────────────────────────────────
 _DEMO_VEHICLE_IDS = ["V001", "V002", "V003"]
 _vehicle_counter = 0

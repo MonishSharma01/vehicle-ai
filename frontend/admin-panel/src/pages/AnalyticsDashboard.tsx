@@ -184,7 +184,7 @@ export const AnalyticsDashboard = () => {
       {/* Header */}
       <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
+          <h1 style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
             <i className="fa-solid fa-chart-line" style={{ color: 'var(--primary)', marginRight: '10px' }}></i>
             Analytics Dashboard
           </h1>
@@ -222,7 +222,7 @@ export const AnalyticsDashboard = () => {
               <i className={`fa-solid ${kpi.icon}`} style={{ color: kpi.color, fontSize: '18px' }}></i>
             </div>
             <div>
-              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text)', lineHeight: 1 }}>{kpi.value}</div>
+              <div style={{ fontSize: '24px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>{kpi.value}</div>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{kpi.label}</div>
             </div>
           </div>
